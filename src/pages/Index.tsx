@@ -4,6 +4,8 @@ import Header from '@/components/Header';
 import QueryInput from '@/components/QueryInput';
 import QueryProcess from '@/components/QueryProcess';
 import Dashboard from '@/components/Dashboard';
+import SystemPromptBox from '@/components/SystemPromptBox';
+import SuggestionChips from '@/components/SuggestionChips';
 import { generateMockSQL, generateMockData, DataPoint } from '@/lib/mockData';
 import { toast } from 'sonner';
 
@@ -61,6 +63,10 @@ const Index = () => {
     }
   };
   
+  const handleSelectSuggestion = (suggestion: string) => {
+    handleSubmitQuery(suggestion);
+  };
+  
   return (
     <div className="min-h-screen bg-background">
       {/* Decorative background elements */}
@@ -82,6 +88,11 @@ const Index = () => {
               Ask questions about your data in natural language. YellowBird will translate your query into SQL,
               retrieve the data, and generate interactive visualizations.
             </p>
+          </div>
+          
+          <div className="max-w-3xl mx-auto">
+            <SystemPromptBox />
+            <SuggestionChips onSelectSuggestion={handleSelectSuggestion} />
           </div>
           
           <QueryInput 

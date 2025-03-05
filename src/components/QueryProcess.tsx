@@ -93,9 +93,19 @@ const QueryProcess = ({
           {/* SQL Output */}
           {sqlHighlighted ? (
             <div className="mt-2 pl-8">
-              <pre className="text-xs font-mono bg-secondary/30 p-3 rounded-md overflow-x-auto">
-                <code dangerouslySetInnerHTML={{ __html: sqlHighlighted }} />
-              </pre>
+              <div className="relative">
+                <pre className="text-xs font-mono bg-secondary/30 p-3 rounded-md overflow-x-auto max-h-72 scrollbar-thin">
+                  <code dangerouslySetInnerHTML={{ __html: sqlHighlighted }} />
+                </pre>
+                <div className="absolute top-2 right-2">
+                  <button 
+                    className="text-xs bg-secondary/50 hover:bg-secondary px-2 py-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => navigator.clipboard.writeText(sqlQuery || '')}
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="pl-8 h-12 flex items-center">

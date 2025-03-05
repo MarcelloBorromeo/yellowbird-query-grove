@@ -123,6 +123,22 @@
     @apply bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border border-white/20 dark:border-neutral-800/20 shadow-sm;
   }
   
+  /* Hide scrollbar for clean UIs */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  /* Thin scrollbars for code blocks */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  
   /* Animations */
   .animate-delay-100 {
     animation-delay: 100ms;
@@ -142,5 +158,22 @@
   
   .animate-delay-500 {
     animation-delay: 500ms;
+  }
+  
+  /* Keyframes for floating animation */
+  @keyframes float {
+    0% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+    100% {
+      transform: translateY(0px);
+    }
+  }
+  
+  .animate-float {
+    animation: float 10s ease-in-out infinite;
   }
 }
