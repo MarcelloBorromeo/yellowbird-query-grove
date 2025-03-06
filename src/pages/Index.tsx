@@ -6,6 +6,7 @@ import QueryProcess from '@/components/QueryProcess';
 import Dashboard from '@/components/Dashboard';
 import SystemPromptBox from '@/components/SystemPromptBox';
 import SuggestionChips from '@/components/SuggestionChips';
+import ResponseContainer from '@/components/ResponseContainer';
 import { generateMockSQL, generateMockData, DataPoint } from '@/lib/mockData';
 import { toast } from 'sonner';
 
@@ -16,6 +17,7 @@ const Index = () => {
   const [hasError, setHasError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [dashboardData, setDashboardData] = useState<DataPoint[] | null>(null);
+  const [response, setResponse] = useState<string | null>(null);
   
   const handleSubmitQuery = async (query: string) => {
     setUserQuery(query);
@@ -24,6 +26,7 @@ const Index = () => {
     setHasError(false);
     setRetryCount(0);
     setDashboardData(null);
+    setResponse(null);
     
     try {
       // Step 1: Generate SQL from natural language
@@ -52,6 +55,20 @@ const Index = () => {
       // Step 2: Execute SQL and get data
       const data = await generateMockData(query);
       setDashboardData(data);
+      
+      // Step 3: Generate a natural language response
+      setTimeout(() => {
+        // Simulate generating a response based on the query
+        if (query.toLowerCase().includes("conversion rate")) {
+          setResponse("Based on your query, I've analyzed the data and found some interesting patterns. The conversion rate varies significantly by country, with Japan (15.3%) and Germany (14.8%) showing the highest rates, while Brazil (6.2%) and Mexico (7.1%) have lower conversion rates. North American and European markets generally outperform other regions.");
+        } else if (query.toLowerCase().includes("active users")) {
+          setResponse("The data shows a steady increase in monthly active users over the past 6 months, with a notable 23% overall growth. There was a significant spike in activity during March, likely due to the new feature release. Weekend usage remains consistently higher than weekday engagement, and mobile users account for 73% of all active sessions.");
+        } else if (query.toLowerCase().includes("revenue")) {
+          setResponse("The revenue analysis reveals that the 'Premium' category generates the highest income (42% of total), followed by 'Essential' (28%) and 'Basic' (18%). Year-over-year growth is strongest in the 'Premium' segment at 34%, while 'Basic' has plateaued with only 3% growth compared to last year.");
+        } else {
+          setResponse("I've analyzed the data based on your query. The visualizations below show the key trends and patterns found in the dataset. You can see the distribution of values across different categories and how they've changed over time.");
+        }
+      }, 1000);
       
       toast.success("Query processed successfully");
     } catch (error) {
@@ -109,6 +126,11 @@ const Index = () => {
             sqlQuery={sqlQuery}
             hasError={hasError}
             retryCount={retryCount}
+          />
+          
+          <ResponseContainer
+            response={response}
+            isLoading={isProcessing && dashboardData === null}
           />
           
           <Dashboard 

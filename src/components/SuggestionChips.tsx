@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface SuggestionChipsProps {
   onSelectSuggestion: (suggestion: string) => void;
@@ -40,7 +41,7 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
     }
   }, []);
 
-  // Handle auto scrolling
+  // Handle continuous auto scrolling with looping
   useEffect(() => {
     const startAutoScroll = () => {
       if (autoScrollIntervalRef.current) return;
@@ -49,13 +50,16 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
         const container = containerRef.current;
         if (!container || maxScroll <= 0) return;
         
-        // Move scroll position by a small amount each interval
         setScrollPosition((prev) => {
           const newPosition = prev + 1;
           // Reset when we reach the end
           if (newPosition >= maxScroll) {
-            container.scrollLeft = 0;
-            return 0;
+            // Instead of instantly jumping to the start, we'll scroll normally to the end,
+            // then quickly reset to the beginning
+            if (newPosition >= maxScroll + 30) {
+              container.scrollTo({ left: 0, behavior: 'auto' });
+              return 0;
+            }
           }
           
           // Update actual scroll position
@@ -135,8 +139,8 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
               
               setScrollPosition((prev) => {
                 const newPosition = prev + 1;
-                if (newPosition >= maxScroll) {
-                  container.scrollLeft = 0;
+                if (newPosition >= maxScroll + 30) {
+                  container.scrollTo({ left: 0, behavior: 'auto' });
                   return 0;
                 }
                 container.scrollLeft = newPosition;
