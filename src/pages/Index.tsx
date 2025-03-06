@@ -92,6 +92,9 @@ const Index = () => {
           
           <div className="max-w-3xl mx-auto">
             <SystemPromptBox />
+          </div>
+          
+          <div className="max-w-3xl mx-auto">
             <SuggestionChips onSelectSuggestion={handleSelectSuggestion} />
           </div>
           

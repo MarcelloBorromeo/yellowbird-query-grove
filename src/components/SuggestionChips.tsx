@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface SuggestionChipsProps {
@@ -8,6 +8,9 @@ interface SuggestionChipsProps {
 
 const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
   const [scrollPosition, setScrollPosition] = useState(0);
+  const [maxScroll, setMaxScroll] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const autoScrollIntervalRef = useRef<number | null>(null);
   
   const suggestions = [
     "Show monthly active users for the last 6 months",
@@ -20,8 +23,72 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
     "Compare revenue by region",
   ];
   
+  // Calculate max scroll position
+  useEffect(() => {
+    const container = containerRef.current;
+    if (container) {
+      const calculateMaxScroll = () => {
+        setMaxScroll(Math.max(0, container.scrollWidth - container.clientWidth));
+      };
+      
+      calculateMaxScroll();
+      window.addEventListener('resize', calculateMaxScroll);
+      
+      return () => {
+        window.removeEventListener('resize', calculateMaxScroll);
+      };
+    }
+  }, []);
+
+  // Handle auto scrolling
+  useEffect(() => {
+    const startAutoScroll = () => {
+      if (autoScrollIntervalRef.current) return;
+      
+      autoScrollIntervalRef.current = window.setInterval(() => {
+        const container = containerRef.current;
+        if (!container || maxScroll <= 0) return;
+        
+        // Move scroll position by a small amount each interval
+        setScrollPosition((prev) => {
+          const newPosition = prev + 1;
+          // Reset when we reach the end
+          if (newPosition >= maxScroll) {
+            container.scrollLeft = 0;
+            return 0;
+          }
+          
+          // Update actual scroll position
+          container.scrollLeft = newPosition;
+          return newPosition;
+        });
+      }, 30); // Smooth and slow scrolling
+    };
+    
+    const stopAutoScroll = () => {
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current);
+        autoScrollIntervalRef.current = null;
+      }
+    };
+    
+    startAutoScroll();
+    
+    return () => {
+      stopAutoScroll();
+    };
+  }, [maxScroll]);
+  
+  // Handle manual scrolling
+  const handleManualScroll = () => {
+    const container = containerRef.current;
+    if (container) {
+      setScrollPosition(container.scrollLeft);
+    }
+  };
+  
   const scrollLeft = () => {
-    const container = document.getElementById('chips-container');
+    const container = containerRef.current;
     if (container) {
       container.scrollBy({ left: -200, behavior: 'smooth' });
       setScrollPosition(Math.max(0, scrollPosition - 200));
@@ -29,10 +96,10 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
   };
   
   const scrollRight = () => {
-    const container = document.getElementById('chips-container');
+    const container = containerRef.current;
     if (container) {
       container.scrollBy({ left: 200, behavior: 'smooth' });
-      setScrollPosition(scrollPosition + 200);
+      setScrollPosition(Math.min(maxScroll, scrollPosition + 200));
     }
   };
   
@@ -50,8 +117,34 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
       
       <div 
         id="chips-container"
-        className="flex overflow-x-auto space-x-2 py-2 px-1 no-scrollbar"
+        ref={containerRef}
+        className="flex overflow-x-auto space-x-2 py-2 px-1 no-scrollbar scroll-smooth"
         style={{ scrollBehavior: 'smooth' }}
+        onScroll={handleManualScroll}
+        onMouseEnter={() => {
+          if (autoScrollIntervalRef.current) {
+            clearInterval(autoScrollIntervalRef.current);
+            autoScrollIntervalRef.current = null;
+          }
+        }}
+        onMouseLeave={() => {
+          if (!autoScrollIntervalRef.current) {
+            autoScrollIntervalRef.current = window.setInterval(() => {
+              const container = containerRef.current;
+              if (!container || maxScroll <= 0) return;
+              
+              setScrollPosition((prev) => {
+                const newPosition = prev + 1;
+                if (newPosition >= maxScroll) {
+                  container.scrollLeft = 0;
+                  return 0;
+                }
+                container.scrollLeft = newPosition;
+                return newPosition;
+              });
+            }, 30);
+          }
+        }}
       >
         {suggestions.map((suggestion, index) => (
           <button
@@ -64,13 +157,15 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
         ))}
       </div>
       
-      <button 
-        onClick={scrollRight}
-        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 backdrop-blur-sm rounded-full p-1 shadow-sm border border-border"
-        aria-label="Scroll right"
-      >
-        <ChevronRight className="h-4 w-4" />
-      </button>
+      {scrollPosition < maxScroll && (
+        <button 
+          onClick={scrollRight}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 backdrop-blur-sm rounded-full p-1 shadow-sm border border-border"
+          aria-label="Scroll right"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 };
