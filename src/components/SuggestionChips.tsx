@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -130,8 +131,8 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
       <div 
         id="chips-container"
         ref={containerRef}
-        className="flex overflow-x-auto space-x-2 py-2 px-1 no-scrollbar scroll-smooth"
-        style={{ scrollBehavior: 'smooth' }}
+        className="flex overflow-x-auto space-x-2 py-2 px-1 scrollbar-hide scroll-smooth"
+        style={{ scrollBehavior: 'smooth', msOverflowStyle: 'none', scrollbarWidth: 'none' }}
         onScroll={handleManualScroll}
         onMouseEnter={() => {
           if (autoScrollIntervalRef.current) {
