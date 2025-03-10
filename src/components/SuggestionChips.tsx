@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -10,6 +9,7 @@ interface SuggestionChipsProps {
 const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [maxScroll, setMaxScroll] = useState(0);
+  const [scrollDirection, setScrollDirection] = useState<'left' | 'right'>('right');
   const containerRef = useRef<HTMLDivElement>(null);
   const autoScrollIntervalRef = useRef<number | null>(null);
   
@@ -41,7 +41,7 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
     }
   }, []);
 
-  // Handle continuous auto scrolling with looping
+  // Handle bidirectional continuous auto scrolling
   useEffect(() => {
     const startAutoScroll = () => {
       if (autoScrollIntervalRef.current) return;
@@ -51,14 +51,22 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
         if (!container || maxScroll <= 0) return;
         
         setScrollPosition((prev) => {
-          const newPosition = prev + 1;
-          // Reset when we reach the end
-          if (newPosition >= maxScroll) {
-            // Instead of instantly jumping to the start, we'll scroll normally to the end,
-            // then quickly reset to the beginning
-            if (newPosition >= maxScroll + 30) {
-              container.scrollTo({ left: 0, behavior: 'auto' });
-              return 0;
+          // Determine direction and calculate new position
+          let newPosition = prev;
+          
+          if (scrollDirection === 'right') {
+            newPosition = prev + 1;
+            
+            // Check if we need to change direction
+            if (newPosition >= maxScroll) {
+              setScrollDirection('left');
+            }
+          } else { // direction is left
+            newPosition = prev - 1;
+            
+            // Check if we need to change direction
+            if (newPosition <= 0) {
+              setScrollDirection('right');
             }
           }
           
@@ -81,7 +89,7 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
     return () => {
       stopAutoScroll();
     };
-  }, [maxScroll]);
+  }, [maxScroll, scrollDirection]);
   
   // Handle manual scrolling
   const handleManualScroll = () => {
@@ -138,11 +146,21 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
               if (!container || maxScroll <= 0) return;
               
               setScrollPosition((prev) => {
-                const newPosition = prev + 1;
-                if (newPosition >= maxScroll + 30) {
-                  container.scrollTo({ left: 0, behavior: 'auto' });
-                  return 0;
+                // Keep the same bidirectional behavior when mouse leaves
+                let newPosition = prev;
+                
+                if (scrollDirection === 'right') {
+                  newPosition = prev + 1;
+                  if (newPosition >= maxScroll) {
+                    setScrollDirection('left');
+                  }
+                } else {
+                  newPosition = prev - 1;
+                  if (newPosition <= 0) {
+                    setScrollDirection('right');
+                  }
                 }
+                
                 container.scrollLeft = newPosition;
                 return newPosition;
               });
