@@ -11,7 +11,7 @@ const SystemPromptBox = () => {
           </div>
         </div>
         <div>
-          <h3 className="text-sm font-medium mb-1 text-blue-800">Welcome to YellowBird Data Navigator</h3>
+          <h3 className="text-sm font-medium mb-1 text-blue-700">Welcome to YellowBird Data Navigator</h3>
           <p className="text-sm text-blue-700">
             Ask questions about your data in natural language. I'll translate your query into SQL,
             retrieve the data, and generate interactive visualizations for you.
