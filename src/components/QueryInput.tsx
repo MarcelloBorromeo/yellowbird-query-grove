@@ -2,11 +2,14 @@ import { useState, useRef, useEffect } from 'react';
 import { Search, CornerDownLeft, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
 interface QueryInputProps {
   onSubmitQuery: (query: string) => void;
   isProcessing: boolean;
 }
+
 const SAMPLE_QUERIES = ["Show me monthly active users for the last 6 months", "What's the conversion rate by country?", "Compare revenue by product category for Q1 and Q2", "Which features have the highest user engagement?"];
+
 const QueryInput = ({
   onSubmitQuery,
   isProcessing
@@ -16,7 +19,6 @@ const QueryInput = ({
   const [visibleSuggestions, setVisibleSuggestions] = useState<string[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Cycle through sample queries for suggestions
   useEffect(() => {
     const interval = setInterval(() => {
       const randomIndex = Math.floor(Math.random() * SAMPLE_QUERIES.length);
@@ -24,6 +26,7 @@ const QueryInput = ({
     }, 5000);
     return () => clearInterval(interval);
   }, []);
+
   const handleSubmit = () => {
     if (!query.trim()) {
       toast.error("Please enter a query");
@@ -33,25 +36,30 @@ const QueryInput = ({
     if (isProcessing) return;
     onSubmitQuery(query);
   };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
     }
   };
+
   const handleFocus = () => {
     setIsExpanded(true);
   };
+
   const handleBlur = () => {
     if (!query) {
       setIsExpanded(false);
     }
   };
+
   const useSampleQuery = (suggestion: string) => {
     setQuery(suggestion);
     setIsExpanded(true);
     inputRef.current?.focus();
   };
+
   return <div className="w-full max-w-3xl mx-auto">
       <div className="relative">
         <div className={cn("relative glass-card rounded-xl transition-all duration-300 ease-in-out overflow-hidden", isExpanded ? "shadow-md" : "shadow-sm")}>
@@ -78,11 +86,19 @@ const QueryInput = ({
           </div>
         </div>
         
-        {/* Sample queries */}
         <div className={cn("mt-3 flex flex-wrap gap-2 transition-opacity duration-300", query || isProcessing ? "opacity-0" : "opacity-100")}>
-          {visibleSuggestions.map((suggestion, index) => {})}
+          {visibleSuggestions.map((suggestion, index) => (
+            <button
+              key={index}
+              onClick={() => useSampleQuery(suggestion)}
+              className="inline-flex items-center px-3 py-1.5 bg-accent/10 hover:bg-accent/20 rounded-lg text-sm transition-colors"
+            >
+              {suggestion}
+            </button>
+          ))}
         </div>
       </div>
     </div>;
 };
+
 export default QueryInput;
