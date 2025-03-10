@@ -27,8 +27,8 @@ const Header = () => {
             <NavLink 
               to="/" 
               className={({isActive}) => cn(
-                "flex items-center space-x-1 text-sm font-medium py-2",
-                isActive && "text-yellowbird-500 border-b-2 border-yellowbird-500"
+                "flex items-center space-x-1 text-sm font-medium py-2 text-black",
+                isActive && "border-b-2 border-yellowbird-500"
               )}
               end
             >
@@ -57,8 +57,8 @@ const Header = () => {
           <NavLink 
             to="/" 
             className={({isActive}) => cn(
-              "flex items-center space-x-2 text-lg font-medium p-2 rounded-lg",
-              isActive ? "bg-yellowbird-50 text-yellowbird-900" : "text-gray-600 hover:bg-gray-50"
+              "flex items-center space-x-2 text-lg font-medium p-2 rounded-lg text-black",
+              isActive ? "bg-yellowbird-50" : "hover:bg-gray-50"
             )}
             onClick={() => setIsMobileMenuOpen(false)}
             end
