@@ -1,9 +1,9 @@
+
 import { useState } from 'react';
 import Header from '@/components/Header';
 import QueryInput from '@/components/QueryInput';
 import QueryProcess from '@/components/QueryProcess';
 import Dashboard from '@/components/Dashboard';
-import SystemPromptBox from '@/components/SystemPromptBox';
 import SuggestionChips from '@/components/SuggestionChips';
 import ResponseContainer from '@/components/ResponseContainer';
 import { generateMockSQL, generateMockData, DataPoint } from '@/lib/mockData';
@@ -95,7 +95,7 @@ const Index = () => {
           </div>
           
           <div className="max-w-3xl mx-auto space-y-6">
-            <SystemPromptBox />
+            {/* SystemPromptBox has been removed */}
             <SuggestionChips onSelectSuggestion={handleSelectSuggestion} />
             <QueryInput onSubmitQuery={handleSubmitQuery} isProcessing={isProcessing} />
             <QueryProcess 
