@@ -11,6 +11,7 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [maxScroll, setMaxScroll] = useState(0);
   const [scrollDirection, setScrollDirection] = useState<'left' | 'right'>('right');
+  const [isHovering, setIsHovering] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const autoScrollIntervalRef = useRef<number | null>(null);
   
@@ -28,71 +29,81 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
   // Calculate max scroll position
   useEffect(() => {
     const container = containerRef.current;
-    if (container) {
-      const calculateMaxScroll = () => {
-        setMaxScroll(Math.max(0, container.scrollWidth - container.clientWidth));
-      };
-      
-      calculateMaxScroll();
-      window.addEventListener('resize', calculateMaxScroll);
-      
-      return () => {
-        window.removeEventListener('resize', calculateMaxScroll);
-      };
-    }
+    if (!container) return;
+    
+    const calculateMaxScroll = () => {
+      const newMaxScroll = Math.max(0, container.scrollWidth - container.clientWidth);
+      setMaxScroll(newMaxScroll);
+    };
+    
+    calculateMaxScroll();
+    
+    // Recalculate when window resizes
+    window.addEventListener('resize', calculateMaxScroll);
+    
+    return () => {
+      window.removeEventListener('resize', calculateMaxScroll);
+    };
   }, []);
 
-  // Handle bidirectional continuous auto scrolling
+  // Auto-scrolling effect
   useEffect(() => {
+    // Don't auto-scroll if the user is hovering or there's no need to scroll
+    if (isHovering || maxScroll <= 0) {
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current);
+        autoScrollIntervalRef.current = null;
+      }
+      return;
+    }
+    
     const startAutoScroll = () => {
-      if (autoScrollIntervalRef.current) return;
+      // Clear any existing interval first
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current);
+      }
       
       autoScrollIntervalRef.current = window.setInterval(() => {
         const container = containerRef.current;
-        if (!container || maxScroll <= 0) return;
+        if (!container) return;
         
         setScrollPosition((prev) => {
-          // Determine direction and calculate new position
+          // Calculate new position based on direction
           let newPosition = prev;
           
           if (scrollDirection === 'right') {
-            newPosition = prev + 1;
+            newPosition = Math.min(prev + 1, maxScroll);
             
-            // Check if we need to change direction
+            // Change direction if we reached the end
             if (newPosition >= maxScroll) {
               setScrollDirection('left');
             }
-          } else { // direction is left
-            newPosition = prev - 1;
+          } else {
+            newPosition = Math.max(prev - 1, 0);
             
-            // Check if we need to change direction
+            // Change direction if we reached the beginning
             if (newPosition <= 0) {
               setScrollDirection('right');
             }
           }
           
-          // Update actual scroll position
+          // Update scroll position in the DOM
           container.scrollLeft = newPosition;
           return newPosition;
         });
-      }, 30); // Smooth and slow scrolling
-    };
-    
-    const stopAutoScroll = () => {
-      if (autoScrollIntervalRef.current) {
-        clearInterval(autoScrollIntervalRef.current);
-        autoScrollIntervalRef.current = null;
-      }
+      }, 30);
     };
     
     startAutoScroll();
     
     return () => {
-      stopAutoScroll();
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current);
+        autoScrollIntervalRef.current = null;
+      }
     };
-  }, [maxScroll, scrollDirection]);
+  }, [maxScroll, scrollDirection, isHovering]);
   
-  // Handle manual scrolling
   const handleManualScroll = () => {
     const container = containerRef.current;
     if (container) {
@@ -103,16 +114,18 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
   const scrollLeft = () => {
     const container = containerRef.current;
     if (container) {
-      container.scrollBy({ left: -200, behavior: 'smooth' });
-      setScrollPosition(Math.max(0, scrollPosition - 200));
+      const newPosition = Math.max(0, scrollPosition - 200);
+      container.scrollTo({ left: newPosition, behavior: 'smooth' });
+      setScrollPosition(newPosition);
     }
   };
   
   const scrollRight = () => {
     const container = containerRef.current;
     if (container) {
-      container.scrollBy({ left: 200, behavior: 'smooth' });
-      setScrollPosition(Math.min(maxScroll, scrollPosition + 200));
+      const newPosition = Math.min(maxScroll, scrollPosition + 200);
+      container.scrollTo({ left: newPosition, behavior: 'smooth' });
+      setScrollPosition(newPosition);
     }
   };
   
@@ -129,45 +142,16 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
       )}
       
       <div 
-        id="chips-container"
         ref={containerRef}
         className="flex overflow-x-auto space-x-2 py-2 px-1 scrollbar-hide scroll-smooth"
-        style={{ scrollBehavior: 'smooth', msOverflowStyle: 'none', scrollbarWidth: 'none' }}
+        style={{ 
+          scrollBehavior: 'smooth', 
+          msOverflowStyle: 'none', 
+          scrollbarWidth: 'none' 
+        }}
         onScroll={handleManualScroll}
-        onMouseEnter={() => {
-          if (autoScrollIntervalRef.current) {
-            clearInterval(autoScrollIntervalRef.current);
-            autoScrollIntervalRef.current = null;
-          }
-        }}
-        onMouseLeave={() => {
-          if (!autoScrollIntervalRef.current) {
-            autoScrollIntervalRef.current = window.setInterval(() => {
-              const container = containerRef.current;
-              if (!container || maxScroll <= 0) return;
-              
-              setScrollPosition((prev) => {
-                // Keep the same bidirectional behavior when mouse leaves
-                let newPosition = prev;
-                
-                if (scrollDirection === 'right') {
-                  newPosition = prev + 1;
-                  if (newPosition >= maxScroll) {
-                    setScrollDirection('left');
-                  }
-                } else {
-                  newPosition = prev - 1;
-                  if (newPosition <= 0) {
-                    setScrollDirection('right');
-                  }
-                }
-                
-                container.scrollLeft = newPosition;
-                return newPosition;
-              });
-            }, 30);
-          }
-        }}
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
       >
         {suggestions.map((suggestion, index) => (
           <button
