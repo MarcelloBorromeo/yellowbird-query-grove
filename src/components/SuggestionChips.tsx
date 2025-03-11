@@ -26,7 +26,7 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
     "Compare revenue by region",
   ];
   
-  // Calculate max scroll position
+  // Calculate max scroll position and update on resize
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -46,9 +46,8 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
     };
   }, []);
 
-  // Auto-scrolling effect
+  // Handle auto-scrolling
   useEffect(() => {
-    // Don't auto-scroll if the user is hovering or there's no need to scroll
     if (isHovering || maxScroll <= 0) {
       if (autoScrollIntervalRef.current) {
         clearInterval(autoScrollIntervalRef.current);
@@ -58,40 +57,37 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
     }
     
     const startAutoScroll = () => {
-      // Clear any existing interval first
       if (autoScrollIntervalRef.current) {
         clearInterval(autoScrollIntervalRef.current);
       }
+      
+      const SCROLL_SPEED = 1; // pixels per interval
+      const SCROLL_INTERVAL = 25; // milliseconds
       
       autoScrollIntervalRef.current = window.setInterval(() => {
         const container = containerRef.current;
         if (!container) return;
         
-        setScrollPosition((prev) => {
-          // Calculate new position based on direction
-          let newPosition = prev;
-          
-          if (scrollDirection === 'right') {
-            newPosition = Math.min(prev + 1, maxScroll);
-            
-            // Change direction if we reached the end
-            if (newPosition >= maxScroll) {
-              setScrollDirection('left');
-            }
-          } else {
-            newPosition = Math.max(prev - 1, 0);
-            
-            // Change direction if we reached the beginning
-            if (newPosition <= 0) {
-              setScrollDirection('right');
-            }
-          }
-          
-          // Update scroll position in the DOM
+        if (scrollDirection === 'right') {
+          const newPosition = Math.min(scrollPosition + SCROLL_SPEED, maxScroll);
+          setScrollPosition(newPosition);
           container.scrollLeft = newPosition;
-          return newPosition;
-        });
-      }, 30);
+          
+          // Change direction if we reached the end
+          if (newPosition >= maxScroll) {
+            setScrollDirection('left');
+          }
+        } else {
+          const newPosition = Math.max(scrollPosition - SCROLL_SPEED, 0);
+          setScrollPosition(newPosition);
+          container.scrollLeft = newPosition;
+          
+          // Change direction if we reached the beginning
+          if (newPosition <= 0) {
+            setScrollDirection('right');
+          }
+        }
+      }, SCROLL_INTERVAL);
     };
     
     startAutoScroll();
@@ -102,31 +98,30 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
         autoScrollIntervalRef.current = null;
       }
     };
-  }, [maxScroll, scrollDirection, isHovering]);
+  }, [maxScroll, scrollDirection, isHovering, scrollPosition]);
   
+  // Handle manual scrolling
   const handleManualScroll = () => {
-    const container = containerRef.current;
-    if (container) {
-      setScrollPosition(container.scrollLeft);
-    }
+    if (!containerRef.current) return;
+    setScrollPosition(containerRef.current.scrollLeft);
   };
   
   const scrollLeft = () => {
     const container = containerRef.current;
-    if (container) {
-      const newPosition = Math.max(0, scrollPosition - 200);
-      container.scrollTo({ left: newPosition, behavior: 'smooth' });
-      setScrollPosition(newPosition);
-    }
+    if (!container) return;
+    
+    const newPosition = Math.max(0, scrollPosition - 200);
+    container.scrollTo({ left: newPosition, behavior: 'smooth' });
+    setScrollPosition(newPosition);
   };
   
   const scrollRight = () => {
     const container = containerRef.current;
-    if (container) {
-      const newPosition = Math.min(maxScroll, scrollPosition + 200);
-      container.scrollTo({ left: newPosition, behavior: 'smooth' });
-      setScrollPosition(newPosition);
-    }
+    if (!container) return;
+    
+    const newPosition = Math.min(maxScroll, scrollPosition + 200);
+    container.scrollTo({ left: newPosition, behavior: 'smooth' });
+    setScrollPosition(newPosition);
   };
   
   return (
@@ -134,7 +129,7 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
       {scrollPosition > 0 && (
         <button 
           onClick={scrollLeft}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 backdrop-blur-sm rounded-full p-1 shadow-sm border border-border"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm border border-border hover:bg-background/90 transition-colors"
           aria-label="Scroll left"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -152,6 +147,8 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
         onScroll={handleManualScroll}
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
+        onTouchStart={() => setIsHovering(true)}
+        onTouchEnd={() => setTimeout(() => setIsHovering(false), 5000)}
       >
         {suggestions.map((suggestion, index) => (
           <button
@@ -167,7 +164,7 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
       {scrollPosition < maxScroll && (
         <button 
           onClick={scrollRight}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 backdrop-blur-sm rounded-full p-1 shadow-sm border border-border"
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm border border-border hover:bg-background/90 transition-colors"
           aria-label="Scroll right"
         >
           <ChevronRight className="h-4 w-4" />
