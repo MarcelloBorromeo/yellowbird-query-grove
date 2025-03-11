@@ -78,7 +78,7 @@ const Index = () => {
   };
   
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50/70 via-white to-yellow-50/50">
       <Header />
       
       <main className="pt-20 pb-20 px-4 relative z-10">
@@ -95,7 +95,6 @@ const Index = () => {
           </div>
           
           <div className="max-w-3xl mx-auto space-y-6">
-            {/* SystemPromptBox has been removed */}
             <SuggestionChips onSelectSuggestion={handleSelectSuggestion} />
             <QueryInput onSubmitQuery={handleSubmitQuery} isProcessing={isProcessing} />
             <QueryProcess 

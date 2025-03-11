@@ -2,8 +2,9 @@
 import { useState } from 'react';
 import { BarChart, LineChart, PieChart } from 'recharts';
 import { AreaChart, Area, Bar, Line, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Download, Maximize2, Minimize2, MoreHorizontal } from 'lucide-react';
+import { Download, Maximize2, Minimize2, Link, Check, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface ChartCardProps {
   title: string;
@@ -34,6 +35,11 @@ const ChartCard = ({
   colors = defaultColors
 }: ChartCardProps) => {
   const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  
+  // Generate a unique ID for this chart (in a real app, this would be more robust)
+  const chartId = `chart-${title.toLowerCase().replace(/\s+/g, '-')}-${chartType}`;
+  const shareableLink = `${window.location.origin}/?chart=${chartId}`;
   
   const toggleExpand = () => {
     setExpanded(!expanded);
@@ -42,6 +48,16 @@ const ChartCard = ({
   const downloadChart = () => {
     // In a real app, implement actual chart download functionality
     console.log('Downloading chart:', title);
+  };
+
+  const copyShareableLink = () => {
+    navigator.clipboard.writeText(shareableLink);
+    setCopied(true);
+    toast.success('Link copied to clipboard');
+    
+    setTimeout(() => {
+      setCopied(false);
+    }, 2000);
   };
 
   const renderChart = () => {
@@ -209,6 +225,19 @@ const ChartCard = ({
           )}
         </div>
         <div className="flex space-x-1">
+          <button 
+            onClick={copyShareableLink}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+            aria-label="Copy shareable link"
+            title="Copy shareable link"
+          >
+            {copied ? (
+              <Check className="h-4 w-4 text-green-500" />
+            ) : (
+              <Link className="h-4 w-4" />
+            )}
+          </button>
+          
           <button 
             onClick={downloadChart}
             className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
