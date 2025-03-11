@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { Search, CornerDownLeft, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -77,7 +78,15 @@ const QueryInput = ({
         </div>
         
         <div className={cn("mt-3 flex flex-wrap gap-2 transition-opacity duration-300", query || isProcessing ? "opacity-0" : "opacity-100")}>
-          {visibleSuggestions.map((suggestion, index) => {})}
+          {visibleSuggestions.map((suggestion, index) => (
+            <button
+              key={index}
+              onClick={() => useSampleQuery(suggestion)}
+              className="whitespace-nowrap px-3 py-1.5 bg-secondary/50 hover:bg-secondary text-sm rounded-full transition-colors"
+            >
+              {suggestion}
+            </button>
+          ))}
         </div>
       </div>
     </div>;
