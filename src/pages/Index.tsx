@@ -1,8 +1,10 @@
+
 import { useState } from 'react';
 import Header from '@/components/Header';
 import QueryInput from '@/components/QueryInput';
 import QueryProcess from '@/components/QueryProcess';
 import Dashboard from '@/components/Dashboard';
+import SuggestionChips from '@/components/SuggestionChips';
 import ResponseContainer from '@/components/ResponseContainer';
 import { generateMockSQL, generateMockData, DataPoint } from '@/lib/mockData';
 import { toast } from 'sonner';
@@ -70,9 +72,13 @@ const Index = () => {
       setIsProcessing(false);
     }
   };
-
+  
+  const handleSelectSuggestion = (suggestion: string) => {
+    handleSubmitQuery(suggestion);
+  };
+  
   return (
-    <div className="min-h-screen bg-[#FEF7CD]/30">
+    <div className="min-h-screen bg-white">
       <Header />
       
       <main className="pt-20 pb-20 px-4 relative z-10">
@@ -89,6 +95,8 @@ const Index = () => {
           </div>
           
           <div className="max-w-3xl mx-auto space-y-6">
+            {/* SystemPromptBox has been removed */}
+            <SuggestionChips onSelectSuggestion={handleSelectSuggestion} />
             <QueryInput onSubmitQuery={handleSubmitQuery} isProcessing={isProcessing} />
             <QueryProcess 
               userQuery={userQuery}
