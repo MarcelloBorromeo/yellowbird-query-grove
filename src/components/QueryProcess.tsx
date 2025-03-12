@@ -23,7 +23,6 @@ const QueryProcess = ({
   onRunModifiedSql
 }: QueryProcessProps) => {
   const [showProcess, setShowProcess] = useState(false);
-  const [sqlHighlighted, setSqlHighlighted] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
   const [modifiedSql, setModifiedSql] = useState('');
   
@@ -35,23 +34,11 @@ const QueryProcess = ({
   
   useEffect(() => {
     if (!sqlQuery) {
-      setSqlHighlighted('');
       setModifiedSql('');
       return;
     }
     
     setModifiedSql(sqlQuery);
-    
-    // Very basic highlighting - in a real app, use a proper syntax highlighter
-    const highlighted = sqlQuery
-      .replace(/(SELECT|FROM|WHERE|JOIN|GROUP BY|ORDER BY|HAVING|LIMIT|AND|OR|AS|ON|INNER|LEFT|RIGHT|OUTER)/gi, 
-        match => `<span class="text-accent font-semibold">${match}</span>`)
-      .replace(/('.*?'|".*?")/g, 
-        match => `<span class="text-yellowbird-600 dark:text-yellowbird-400">${match}</span>`)
-      .replace(/\b(\d+)\b/g, 
-        match => `<span class="text-accent-foreground">${match}</span>`);
-    
-    setSqlHighlighted(highlighted);
   }, [sqlQuery]);
   
   const handleToggleEditMode = (checked: boolean) => {
@@ -163,7 +150,7 @@ const QueryProcess = ({
                 ) : (
                   <div className="relative">
                     <pre className="text-xs font-mono bg-secondary/30 p-3 rounded-md overflow-x-auto max-h-72 scrollbar-thin">
-                      <code dangerouslySetInnerHTML={{ __html: sqlHighlighted }} />
+                      <code>{sqlQuery}</code>
                     </pre>
                     <div className="absolute top-2 right-2">
                       <button 
