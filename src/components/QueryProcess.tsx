@@ -1,7 +1,9 @@
 
 import { useEffect, useState } from 'react';
-import { Code, Database, RefreshCw, Check, AlertTriangle } from 'lucide-react';
+import { Code, Database, RefreshCw, Check, AlertTriangle, Pencil, Eye, PlayCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
 
 interface QueryProcessProps {
   userQuery: string;
@@ -9,6 +11,7 @@ interface QueryProcessProps {
   sqlQuery: string | null;
   hasError: boolean;
   retryCount: number;
+  onRunModifiedSql?: (sql: string) => void;
 }
 
 const QueryProcess = ({ 
@@ -16,10 +19,13 @@ const QueryProcess = ({
   isProcessing, 
   sqlQuery, 
   hasError, 
-  retryCount 
+  retryCount,
+  onRunModifiedSql
 }: QueryProcessProps) => {
   const [showProcess, setShowProcess] = useState(false);
   const [sqlHighlighted, setSqlHighlighted] = useState('');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [modifiedSql, setModifiedSql] = useState('');
   
   useEffect(() => {
     if (userQuery) {
@@ -27,12 +33,14 @@ const QueryProcess = ({
     }
   }, [userQuery]);
   
-  // Simple SQL syntax highlighting
   useEffect(() => {
     if (!sqlQuery) {
       setSqlHighlighted('');
+      setModifiedSql('');
       return;
     }
+    
+    setModifiedSql(sqlQuery);
     
     // Very basic highlighting - in a real app, use a proper syntax highlighter
     const highlighted = sqlQuery
@@ -45,6 +53,25 @@ const QueryProcess = ({
     
     setSqlHighlighted(highlighted);
   }, [sqlQuery]);
+  
+  const handleToggleEditMode = (checked: boolean) => {
+    setIsEditMode(checked);
+    
+    if (checked) {
+      toast.info("SQL Edit Mode activated. You can now modify the SQL query directly.");
+    } else {
+      toast.info("Read-Only Mode activated. SQL query is view-only.");
+    }
+  };
+  
+  const handleRunModifiedSql = () => {
+    if (onRunModifiedSql && modifiedSql.trim()) {
+      onRunModifiedSql(modifiedSql);
+      toast.success("Running modified SQL query");
+    } else {
+      toast.error("Please provide a valid SQL query");
+    }
+  };
   
   if (!showProcess) return null;
   
@@ -67,44 +94,87 @@ const QueryProcess = ({
           "glass-card rounded-lg p-4 transition-all duration-500",
           isProcessing ? "border-accent/30" : hasError ? "border-destructive/30" : "border-green-500/30"
         )}>
-          <div className="flex items-center space-x-2 mb-2">
-            <div className={cn(
-              "p-1.5 rounded-md",
-              isProcessing ? "bg-accent/10" : hasError ? "bg-destructive/10" : "bg-green-500/10"
-            )}>
-              {isProcessing ? (
-                <RefreshCw className="h-4 w-4 text-accent animate-spin" />
-              ) : hasError ? (
-                <AlertTriangle className="h-4 w-4 text-destructive" />
-              ) : (
-                <Check className="h-4 w-4 text-green-500" />
-              )}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center space-x-2">
+              <div className={cn(
+                "p-1.5 rounded-md",
+                isProcessing ? "bg-accent/10" : hasError ? "bg-destructive/10" : "bg-green-500/10"
+              )}>
+                {isProcessing ? (
+                  <RefreshCw className="h-4 w-4 text-accent animate-spin" />
+                ) : hasError ? (
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                ) : (
+                  <Check className="h-4 w-4 text-green-500" />
+                )}
+              </div>
+              <h3 className="text-sm font-medium">
+                {isProcessing 
+                  ? "Generating SQL" + (retryCount > 0 ? ` (Attempt ${retryCount + 1})` : "")
+                  : hasError 
+                    ? "Error Generating SQL" 
+                    : "SQL Generated Successfully"
+                }
+              </h3>
             </div>
-            <h3 className="text-sm font-medium">
-              {isProcessing 
-                ? "Generating SQL" + (retryCount > 0 ? ` (Attempt ${retryCount + 1})` : "")
-                : hasError 
-                  ? "Error Generating SQL" 
-                  : "SQL Generated Successfully"
-              }
-            </h3>
+            
+            {!isProcessing && !hasError && sqlQuery && (
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-muted-foreground">
+                  {isEditMode ? <Pencil className="h-3 w-3 inline mr-1" /> : <Eye className="h-3 w-3 inline mr-1" />}
+                  {isEditMode ? "Edit Mode" : "Read-Only"}
+                </span>
+                <Switch
+                  checked={isEditMode}
+                  onCheckedChange={handleToggleEditMode}
+                  className="data-[state=checked]:bg-yellowbird-500"
+                />
+              </div>
+            )}
           </div>
           
           {/* SQL Output */}
-          {sqlHighlighted ? (
+          {sqlQuery || modifiedSql ? (
             <div className="mt-2 pl-8">
               <div className="relative">
-                <pre className="text-xs font-mono bg-secondary/30 p-3 rounded-md overflow-x-auto max-h-72 scrollbar-thin">
-                  <code dangerouslySetInnerHTML={{ __html: sqlHighlighted }} />
-                </pre>
-                <div className="absolute top-2 right-2">
-                  <button 
-                    className="text-xs bg-secondary/50 hover:bg-secondary px-2 py-1 rounded text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={() => navigator.clipboard.writeText(sqlQuery || '')}
-                  >
-                    Copy
-                  </button>
-                </div>
+                {isEditMode ? (
+                  <div className="relative">
+                    <textarea
+                      value={modifiedSql}
+                      onChange={(e) => setModifiedSql(e.target.value)}
+                      className="w-full text-xs font-mono bg-secondary/30 p-3 rounded-md overflow-x-auto max-h-72 min-h-[120px] scrollbar-thin focus:ring-1 focus:ring-yellowbird-500 focus:outline-none"
+                    />
+                    <div className="absolute top-2 right-2 flex space-x-2">
+                      <button 
+                        className="text-xs bg-yellowbird-500 hover:bg-yellowbird-600 text-white px-3 py-1 rounded flex items-center space-x-1"
+                        onClick={handleRunModifiedSql}
+                      >
+                        <PlayCircle className="h-3 w-3" />
+                        <span>Run</span>
+                      </button>
+                      <button 
+                        className="text-xs bg-secondary/50 hover:bg-secondary px-2 py-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={() => navigator.clipboard.writeText(modifiedSql || '')}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <pre className="text-xs font-mono bg-secondary/30 p-3 rounded-md overflow-x-auto max-h-72 scrollbar-thin">
+                      <code dangerouslySetInnerHTML={{ __html: sqlHighlighted }} />
+                    </pre>
+                    <div className="absolute top-2 right-2">
+                      <button 
+                        className="text-xs bg-secondary/50 hover:bg-secondary px-2 py-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={() => navigator.clipboard.writeText(sqlQuery || '')}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
