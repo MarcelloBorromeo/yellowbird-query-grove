@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -26,95 +25,103 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
   ];
   
   // Calculate max scroll position
-  useEffect(() => {
+  const calculateMaxScroll = useCallback(() => {
     const container = containerRef.current;
     if (container) {
-      const calculateMaxScroll = () => {
-        setMaxScroll(Math.max(0, container.scrollWidth - container.clientWidth));
-      };
-      
-      calculateMaxScroll();
-      window.addEventListener('resize', calculateMaxScroll);
-      
-      return () => {
-        window.removeEventListener('resize', calculateMaxScroll);
-      };
+      setMaxScroll(Math.max(0, container.scrollWidth - container.clientWidth));
     }
   }, []);
+  
+  useEffect(() => {
+    calculateMaxScroll();
+    window.addEventListener('resize', calculateMaxScroll);
+    
+    return () => {
+      window.removeEventListener('resize', calculateMaxScroll);
+    };
+  }, [calculateMaxScroll]);
 
+  // Extract auto-scroll logic to reusable functions
+  const performAutoScroll = useCallback(() => {
+    const container = containerRef.current;
+    if (!container || maxScroll <= 0) return;
+    
+    setScrollPosition((prev) => {
+      // Same logic as before for direction and position
+      let newPosition = prev;
+      
+      if (scrollDirection === 'right') {
+        newPosition = prev + 1;
+        
+        if (newPosition >= maxScroll) {
+          setScrollDirection('left');
+        }
+      } else {
+        newPosition = prev - 1;
+        
+        if (newPosition <= 0) {
+          setScrollDirection('right');
+        }
+      }
+      
+      container.scrollLeft = newPosition;
+      return newPosition;
+    });
+  }, [maxScroll, scrollDirection]);
+  
+  const startAutoScroll = useCallback(() => {
+    if (autoScrollIntervalRef.current) return;
+    
+    autoScrollIntervalRef.current = window.setInterval(performAutoScroll, 30);
+  }, [performAutoScroll]);
+  
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollIntervalRef.current) {
+      clearInterval(autoScrollIntervalRef.current);
+      autoScrollIntervalRef.current = null;
+    }
+  }, []);
+  
   // Handle bidirectional continuous auto scrolling
   useEffect(() => {
-    const startAutoScroll = () => {
-      if (autoScrollIntervalRef.current) return;
-      
-      autoScrollIntervalRef.current = window.setInterval(() => {
-        const container = containerRef.current;
-        if (!container || maxScroll <= 0) return;
-        
-        setScrollPosition((prev) => {
-          // Determine direction and calculate new position
-          let newPosition = prev;
-          
-          if (scrollDirection === 'right') {
-            newPosition = prev + 1;
-            
-            // Check if we need to change direction
-            if (newPosition >= maxScroll) {
-              setScrollDirection('left');
-            }
-          } else { // direction is left
-            newPosition = prev - 1;
-            
-            // Check if we need to change direction
-            if (newPosition <= 0) {
-              setScrollDirection('right');
-            }
-          }
-          
-          // Update actual scroll position
-          container.scrollLeft = newPosition;
-          return newPosition;
-        });
-      }, 30); // Smooth and slow scrolling
-    };
-    
-    const stopAutoScroll = () => {
-      if (autoScrollIntervalRef.current) {
-        clearInterval(autoScrollIntervalRef.current);
-        autoScrollIntervalRef.current = null;
-      }
-    };
-    
     startAutoScroll();
     
     return () => {
       stopAutoScroll();
     };
-  }, [maxScroll, scrollDirection]);
+  }, [startAutoScroll, stopAutoScroll]);
   
   // Handle manual scrolling
-  const handleManualScroll = () => {
+  const handleManualScroll = useCallback(() => {
     const container = containerRef.current;
     if (container) {
-      setScrollPosition(container.scrollLeft);
+      const newPosition = container.scrollLeft;
+      setScrollPosition(newPosition);
+      
+      // Update direction based on user scroll
+      if (newPosition === 0) {
+        setScrollDirection('right');
+      } else if (newPosition >= maxScroll) {
+        setScrollDirection('left');
+      }
     }
-  };
+  }, [maxScroll]);
   
-  const scrollLeft = () => {
+  const scrollLeft = useCallback(() => {
     const container = containerRef.current;
     if (container) {
       container.scrollBy({ left: -200, behavior: 'smooth' });
-      setScrollPosition(Math.max(0, scrollPosition - 200));
+      // Let onScroll handle position updates
     }
-  };
+  }, []);
   
-  const scrollRight = () => {
+  const scrollRight = useCallback(() => {
     const container = containerRef.current;
     if (container) {
       container.scrollBy({ left: 200, behavior: 'smooth' });
-      setScrollPosition(Math.min(maxScroll, scrollPosition + 200));
+      // Let onScroll handle position updates
     }
-  };
+  }, []);
   
   return (
     <div className="relative w-full mb-6">
@@ -134,46 +141,17 @@ const SuggestionChips = ({ onSelectSuggestion }: SuggestionChipsProps) => {
         className="flex overflow-x-auto space-x-2 py-2 px-1 scrollbar-hide scroll-smooth"
         style={{ scrollBehavior: 'smooth', msOverflowStyle: 'none', scrollbarWidth: 'none' }}
         onScroll={handleManualScroll}
-        onMouseEnter={() => {
-          if (autoScrollIntervalRef.current) {
-            clearInterval(autoScrollIntervalRef.current);
-            autoScrollIntervalRef.current = null;
-          }
-        }}
-        onMouseLeave={() => {
-          if (!autoScrollIntervalRef.current) {
-            autoScrollIntervalRef.current = window.setInterval(() => {
-              const container = containerRef.current;
-              if (!container || maxScroll <= 0) return;
-              
-              setScrollPosition((prev) => {
-                // Keep the same bidirectional behavior when mouse leaves
-                let newPosition = prev;
-                
-                if (scrollDirection === 'right') {
-                  newPosition = prev + 1;
-                  if (newPosition >= maxScroll) {
-                    setScrollDirection('left');
-                  }
-                } else {
-                  newPosition = prev - 1;
-                  if (newPosition <= 0) {
-                    setScrollDirection('right');
-                  }
-                }
-                
-                container.scrollLeft = newPosition;
-                return newPosition;
-              });
-            }, 30);
-          }
-        }}
+        onMouseEnter={stopAutoScroll}
+        onMouseLeave={startAutoScroll}
+        onFocus={stopAutoScroll}
+        onBlur={startAutoScroll}
       >
         {suggestions.map((suggestion, index) => (
           <button
             key={index}
             onClick={() => onSelectSuggestion(suggestion)}
             className="whitespace-nowrap px-4 py-2 bg-secondary/50 hover:bg-secondary/80 rounded-full text-sm transition-colors flex-shrink-0 hover:text-accent"
+            aria-label={`Suggestion: ${suggestion}`}
           >
             {suggestion}
           </button>
