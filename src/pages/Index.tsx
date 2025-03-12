@@ -5,6 +5,7 @@ import QueryInput from '@/components/QueryInput';
 import QueryProcess from '@/components/QueryProcess';
 import Dashboard from '@/components/Dashboard';
 import ResponseContainer from '@/components/ResponseContainer';
+import SuggestionChips from '@/components/SuggestionChips';
 import { generateMockSQL, generateMockData, DataPoint } from '@/lib/mockData';
 import { toast } from 'sonner';
 
@@ -72,6 +73,10 @@ const Index = () => {
     }
   };
   
+  const handleSelectSuggestion = (suggestion: string) => {
+    handleSubmitQuery(suggestion);
+  };
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50/70 via-white to-yellow-50/50">
       <Header />
@@ -90,6 +95,7 @@ const Index = () => {
           </div>
           
           <div className="max-w-3xl mx-auto space-y-6">
+            <SuggestionChips onSelectSuggestion={handleSelectSuggestion} />
             <QueryInput onSubmitQuery={handleSubmitQuery} isProcessing={isProcessing} />
             <QueryProcess 
               userQuery={userQuery}

@@ -1,5 +1,5 @@
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Search, CornerDownLeft, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -9,30 +9,13 @@ interface QueryInputProps {
   isProcessing: boolean;
 }
 
-const SAMPLE_QUERIES = [
-  "Show me monthly active users for the last 6 months", 
-  "What's the conversion rate by country?", 
-  "Compare revenue by product category for Q1 and Q2", 
-  "Which features have the highest user engagement?"
-];
-
 const QueryInput = ({
   onSubmitQuery,
   isProcessing
 }: QueryInputProps) => {
   const [query, setQuery] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
-  const [visibleSuggestions, setVisibleSuggestions] = useState<string[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const randomIndex = Math.floor(Math.random() * SAMPLE_QUERIES.length);
-      setVisibleSuggestions([SAMPLE_QUERIES[randomIndex]]);
-    }, 5000);
-    
-    return () => clearInterval(interval);
-  }, []);
   
   const handleSubmit = () => {
     if (!query.trim()) {
@@ -61,12 +44,6 @@ const QueryInput = ({
     if (!query) {
       setIsExpanded(false);
     }
-  };
-  
-  const useSampleQuery = (suggestion: string) => {
-    setQuery(suggestion);
-    setIsExpanded(true);
-    inputRef.current?.focus();
   };
   
   return (
@@ -128,21 +105,6 @@ const QueryInput = ({
               )}
             </button>
           </div>
-        </div>
-        
-        <div className={cn(
-          "mt-3 flex flex-wrap gap-2 transition-opacity duration-300",
-          query || isProcessing ? "opacity-0" : "opacity-100"
-        )}>
-          {visibleSuggestions.map((suggestion, index) => (
-            <button
-              key={index}
-              onClick={() => useSampleQuery(suggestion)}
-              className="text-sm text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted px-3 py-1 rounded-full transition-colors"
-            >
-              {suggestion}
-            </button>
-          ))}
         </div>
       </div>
     </div>
