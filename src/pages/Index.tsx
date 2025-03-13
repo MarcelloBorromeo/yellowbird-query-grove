@@ -21,37 +21,12 @@ const Index = () => {
   const [isSharedView, setIsSharedView] = useState(false);
   const [searchParams] = useSearchParams();
   
-  // Check if we're viewing a shared dashboard or chart
+  // Check if we're viewing a shared dashboard
   useEffect(() => {
     const sharedDashboardId = searchParams.get('dashboard');
-    const sharedChartData = searchParams.get('chart');
-    
     if (sharedDashboardId) {
       setIsSharedView(true);
       loadSharedDashboard(sharedDashboardId);
-    } else if (sharedChartData) {
-      try {
-        // Decode the base64 chart data
-        const decodedData = atob(sharedChartData);
-        const chartConfig = JSON.parse(decodedData);
-        
-        // Set the user query based on the chart title
-        setUserQuery(`Analysis of ${chartConfig.title}`);
-        
-        // Generate a simple response
-        setResponse(`This is a shared visualization of "${chartConfig.title}". You can explore the data or create your own query.`);
-        
-        // Set the dashboard data
-        setDashboardData(chartConfig.data);
-        
-        // Set shared view flag
-        setIsSharedView(true);
-        
-        toast.success('Shared chart loaded successfully');
-      } catch (error) {
-        console.error('Error loading shared chart:', error);
-        toast.error('Failed to load shared chart');
-      }
     }
   }, [searchParams]);
   

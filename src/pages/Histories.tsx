@@ -42,7 +42,7 @@ const Histories = () => {
             <div className="glass-card rounded-xl p-6 mb-8">
               <div className="flex items-center mb-4">
                 <History className="w-5 h-5 mr-2 text-yellowbird-500" />
-                <h2 className="text-xl font-semibold">Recent Sessions</h2>
+                <h2 className="text-xl font-semibold">Recent Queries</h2>
               </div>
               
               <div className="space-y-4">
