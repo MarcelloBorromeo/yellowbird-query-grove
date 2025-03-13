@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
-import { BarChart, LineChart, PieChart } from 'recharts';
-import { AreaChart, Area, Bar, Line, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import Plot from 'react-plotly.js';
+import { PlotData, Layout } from 'plotly.js';
 import { Download, Maximize2, Minimize2, Link, Check, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -37,17 +37,53 @@ const ChartCard = ({
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   
-  // Generate a unique ID for this chart (in a real app, this would be more robust)
+  // Generate a unique ID for this chart
   const chartId = `chart-${title.toLowerCase().replace(/\s+/g, '-')}-${chartType}`;
-  const shareableLink = `${window.location.origin}/?chart=${chartId}`;
+  
+  // Create shareable link with encoded chart data
+  const createShareableLink = () => {
+    const params = new URLSearchParams();
+    params.set('chart', chartId);
+    params.set('type', chartType);
+    params.set('title', title);
+    params.set('dataKey', dataKey);
+    params.set('nameKey', nameKey);
+    
+    // Safely encode the data as a JSON string
+    const encodedData = encodeURIComponent(JSON.stringify(data));
+    params.set('data', encodedData);
+    
+    return `${window.location.origin}/?${params.toString()}`;
+  };
+  
+  const shareableLink = createShareableLink();
   
   const toggleExpand = () => {
     setExpanded(!expanded);
   };
   
   const downloadChart = () => {
-    // In a real app, implement actual chart download functionality
-    console.log('Downloading chart:', title);
+    const plotElement = document.getElementById(chartId);
+    if (plotElement) {
+      // Use Plotly's toImage function
+      const downloadFilename = `${title.toLowerCase().replace(/\s+/g, '-')}.png`;
+      
+      // @ts-ignore - Plotly is added to the window object
+      window.Plotly.toImage(plotElement, {format: 'png', width: 800, height: 600})
+        .then(function(dataUrl) {
+          const link = document.createElement('a');
+          link.href = dataUrl;
+          link.download = downloadFilename;
+          link.click();
+          toast.success('Chart downloaded successfully');
+        })
+        .catch(function(err) {
+          console.error('Error downloading chart:', err);
+          toast.error('Failed to download chart');
+        });
+    } else {
+      toast.error('Cannot find chart element to download');
+    }
   };
 
   const copyShareableLink = () => {
@@ -60,154 +96,102 @@ const ChartCard = ({
     }, 2000);
   };
 
-  const renderChart = () => {
+  // Convert the data for Plotly
+  const getPlotData = (): Partial<PlotData>[] => {
     switch (chartType) {
       case 'bar':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-              <XAxis 
-                dataKey={nameKey} 
-                tick={{ fontSize: 12 }} 
-                tickLine={false}
-                axisLine={{ stroke: '#e5e7eb', strokeWidth: 1 }}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }} 
-                tickLine={false} 
-                axisLine={{ stroke: '#e5e7eb', strokeWidth: 1 }}
-                width={40}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.8)', 
-                  borderRadius: '0.5rem',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(229, 231, 235, 0.5)',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-                }} 
-              />
-              <Bar dataKey={dataKey} radius={[4, 4, 0, 0]}>
-                {data.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        );
+        return [{
+          type: 'bar',
+          x: data.map(item => item[nameKey]),
+          y: data.map(item => item[dataKey]),
+          marker: {
+            color: data.map((_, index) => colors[index % colors.length])
+          }
+        }];
       
       case 'line':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-              <XAxis 
-                dataKey={nameKey} 
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-                axisLine={{ stroke: '#e5e7eb', strokeWidth: 1 }}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }} 
-                tickLine={false}
-                axisLine={{ stroke: '#e5e7eb', strokeWidth: 1 }}
-                width={40}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.8)', 
-                  borderRadius: '0.5rem',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(229, 231, 235, 0.5)', 
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-                }} 
-              />
-              <Line 
-                type="monotone" 
-                dataKey={dataKey} 
-                stroke={colors[0]} 
-                strokeWidth={2}
-                dot={{ r: 4, strokeWidth: 2, fill: 'white' }}
-                activeDot={{ r: 6, strokeWidth: 0, fill: colors[0] }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        );
+        return [{
+          type: 'scatter',
+          mode: 'lines+markers',
+          x: data.map(item => item[nameKey]),
+          y: data.map(item => item[dataKey]),
+          line: { color: colors[0], width: 2 },
+          marker: { 
+            color: colors[0],
+            size: 8,
+            line: { color: 'white', width: 2 }
+          }
+        }];
       
       case 'pie':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                innerRadius={60}
-                outerRadius={80}
-                paddingAngle={2}
-                dataKey={dataKey}
-                nameKey={nameKey}
-              >
-                {data.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.8)', 
-                  borderRadius: '0.5rem',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(229, 231, 235, 0.5)', 
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-                }} 
-              />
-              <Legend verticalAlign="bottom" height={36} />
-            </PieChart>
-          </ResponsiveContainer>
-        );
+        return [{
+          type: 'pie',
+          labels: data.map(item => item[nameKey]),
+          values: data.map(item => item[dataKey]),
+          marker: {
+            colors: data.map((_, index) => colors[index % colors.length])
+          },
+          hole: 0.4,
+          textinfo: 'label+percent'
+        }];
         
       case 'area':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-              <XAxis 
-                dataKey={nameKey} 
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-                axisLine={{ stroke: '#e5e7eb', strokeWidth: 1 }}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }} 
-                tickLine={false}
-                axisLine={{ stroke: '#e5e7eb', strokeWidth: 1 }}
-                width={40}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.8)', 
-                  borderRadius: '0.5rem',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(229, 231, 235, 0.5)', 
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-                }} 
-              />
-              <Area 
-                type="monotone" 
-                dataKey={dataKey} 
-                stroke={colors[0]}
-                fillOpacity={0.3}
-                fill={colors[0]}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        );
+        return [{
+          type: 'scatter',
+          mode: 'lines',
+          x: data.map(item => item[nameKey]),
+          y: data.map(item => item[dataKey]),
+          fill: 'tozeroy',
+          line: { color: colors[0], width: 2 },
+          fillcolor: colors[0] + '30' // Add transparency
+        }];
       
       default:
-        return <div>Chart type not supported</div>;
+        return [{
+          type: 'bar',
+          x: data.map(item => item[nameKey]),
+          y: data.map(item => item[dataKey])
+        }];
     }
+  };
+
+  // Configure the layout for Plotly
+  const getLayout = (): Partial<Layout> => {
+    const baseLayout: Partial<Layout> = {
+      autosize: true,
+      margin: { l: 50, r: 20, t: 30, b: 50 },
+      font: {
+        family: 'Inter, system-ui, sans-serif',
+        size: 12
+      },
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      plot_bgcolor: 'rgba(0,0,0,0)',
+      xaxis: {
+        gridcolor: 'rgba(0,0,0,0.1)',
+        zerolinecolor: 'rgba(0,0,0,0.2)'
+      },
+      yaxis: {
+        gridcolor: 'rgba(0,0,0,0.1)',
+        zerolinecolor: 'rgba(0,0,0,0.2)'
+      }
+    };
+
+    if (chartType === 'pie') {
+      return {
+        ...baseLayout,
+        legend: {
+          orientation: 'h',
+          y: -0.2
+        }
+      };
+    }
+
+    return baseLayout;
+  };
+
+  const plotConfig = {
+    displayModeBar: false, // Hide the modebar
+    responsive: true
   };
 
   return (
@@ -261,7 +245,13 @@ const ChartCard = ({
       </div>
       
       <div className="h-[calc(100%-64px)]">
-        {renderChart()}
+        <Plot
+          id={chartId}
+          data={getPlotData()}
+          layout={getLayout()}
+          config={plotConfig}
+          style={{ width: '100%', height: '100%' }}
+        />
       </div>
     </div>
   );

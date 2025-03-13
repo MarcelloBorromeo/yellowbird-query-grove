@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import QueryInput from '@/components/QueryInput';
@@ -21,14 +22,42 @@ const Index = () => {
   const [isSharedView, setIsSharedView] = useState(false);
   const [searchParams] = useSearchParams();
   
-  // Check if we're viewing a shared dashboard
+  // Check if we're viewing a shared dashboard or chart
   useEffect(() => {
     const sharedDashboardId = searchParams.get('dashboard');
+    const sharedChartId = searchParams.get('chart');
+    
     if (sharedDashboardId) {
       setIsSharedView(true);
       loadSharedDashboard(sharedDashboardId);
+    } else if (sharedChartId) {
+      setIsSharedView(true);
+      loadSharedChart();
     }
   }, [searchParams]);
+  
+  const loadSharedChart = () => {
+    try {
+      // Get chart data from URL params
+      const chartType = searchParams.get('type') as 'bar' | 'line' | 'pie' | 'area';
+      const chartTitle = searchParams.get('title') || 'Shared Chart';
+      const encodedData = searchParams.get('data');
+      
+      if (encodedData) {
+        // Decode the chart data
+        const decodedData = JSON.parse(decodeURIComponent(encodedData));
+        setDashboardData(decodedData);
+        setUserQuery(`Shared chart: ${chartTitle}`);
+        setResponse(`This is a shared chart visualization for "${chartTitle}". You can explore the data or create your own query to analyze different aspects of the data.`);
+        toast.success('Shared chart loaded successfully');
+      } else {
+        toast.error('Invalid chart data in shared link');
+      }
+    } catch (error) {
+      console.error('Error loading shared chart:', error);
+      toast.error('Failed to load shared chart data');
+    }
+  };
   
   const loadSharedDashboard = async (dashboardId: string) => {
     setIsProcessing(true);
