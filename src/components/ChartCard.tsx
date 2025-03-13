@@ -1,7 +1,6 @@
 
-import { useState } from 'react';
-import { BarChart, LineChart, PieChart } from 'recharts';
-import { AreaChart, Area, Bar, Line, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useState, useRef } from 'react';
+import Plot from 'react-plotly.js';
 import { Download, Maximize2, Minimize2, Link, Check, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -36,178 +35,190 @@ const ChartCard = ({
 }: ChartCardProps) => {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [shareableLink, setShareableLink] = useState<string | null>(null);
+  const plotRef = useRef<any>(null);
   
-  // Generate a unique ID for this chart (in a real app, this would be more robust)
+  // Generate a unique ID for this chart
   const chartId = `chart-${title.toLowerCase().replace(/\s+/g, '-')}-${chartType}`;
-  const shareableLink = `${window.location.origin}/?chart=${chartId}`;
   
   const toggleExpand = () => {
     setExpanded(!expanded);
   };
   
-  const downloadChart = () => {
-    // In a real app, implement actual chart download functionality
-    console.log('Downloading chart:', title);
+  const generateShareableLink = () => {
+    try {
+      // Create an object with the chart data and configuration
+      const chartConfig = {
+        title,
+        description,
+        chartType,
+        data,
+        dataKey,
+        nameKey
+      };
+      
+      // Convert to base64 for URL-safe storage
+      const configString = JSON.stringify(chartConfig);
+      const encodedConfig = btoa(configString);
+      
+      // Create the shareable URL
+      const link = `${window.location.origin}/?chart=${encodedConfig}`;
+      setShareableLink(link);
+      
+      toast.success('Shareable link generated');
+    } catch (error) {
+      console.error('Error generating link:', error);
+      toast.error('Failed to generate shareable link');
+    }
   };
-
+  
   const copyShareableLink = () => {
-    navigator.clipboard.writeText(shareableLink);
-    setCopied(true);
-    toast.success('Link copied to clipboard');
-    
-    setTimeout(() => {
-      setCopied(false);
-    }, 2000);
+    if (!shareableLink) {
+      generateShareableLink();
+      setTimeout(() => {
+        if (shareableLink) {
+          navigator.clipboard.writeText(shareableLink);
+          setCopied(true);
+          toast.success('Link copied to clipboard');
+          
+          setTimeout(() => {
+            setCopied(false);
+          }, 2000);
+        }
+      }, 100);
+    } else {
+      navigator.clipboard.writeText(shareableLink);
+      setCopied(true);
+      toast.success('Link copied to clipboard');
+      
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    }
   };
 
-  const renderChart = () => {
+  const downloadChart = () => {
+    if (plotRef.current) {
+      // Use Plotly's toImage function
+      const plot = plotRef.current.el;
+      if (plot && plot.plot) {
+        const fileName = `${title.toLowerCase().replace(/\s+/g, '-')}.png`;
+        
+        // Get the Plotly instance
+        const plotlyInstance = plot.plot;
+        
+        // Download as PNG
+        plotlyInstance.toImage({
+          format: 'png',
+          width: 800,
+          height: 600
+        }).then((dataUrl: string) => {
+          const link = document.createElement('a');
+          link.download = fileName;
+          link.href = dataUrl;
+          link.click();
+          toast.success('Chart downloaded');
+        }).catch((err: any) => {
+          console.error('Error downloading chart:', err);
+          toast.error('Failed to download chart');
+        });
+      } else {
+        toast.error('Chart not ready for download');
+      }
+    }
+  };
+
+  const getPlotData = () => {
+    // Transform data according to chart type
     switch (chartType) {
       case 'bar':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-              <XAxis 
-                dataKey={nameKey} 
-                tick={{ fontSize: 12 }} 
-                tickLine={false}
-                axisLine={{ stroke: '#e5e7eb', strokeWidth: 1 }}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }} 
-                tickLine={false} 
-                axisLine={{ stroke: '#e5e7eb', strokeWidth: 1 }}
-                width={40}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.8)', 
-                  borderRadius: '0.5rem',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(229, 231, 235, 0.5)',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-                }} 
-              />
-              <Bar dataKey={dataKey} radius={[4, 4, 0, 0]}>
-                {data.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        );
+        return [{
+          x: data.map(item => item[nameKey]),
+          y: data.map(item => item[dataKey]),
+          type: 'bar',
+          marker: {
+            color: data.map((_, index) => colors[index % colors.length])
+          }
+        }];
       
       case 'line':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-              <XAxis 
-                dataKey={nameKey} 
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-                axisLine={{ stroke: '#e5e7eb', strokeWidth: 1 }}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }} 
-                tickLine={false}
-                axisLine={{ stroke: '#e5e7eb', strokeWidth: 1 }}
-                width={40}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.8)', 
-                  borderRadius: '0.5rem',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(229, 231, 235, 0.5)', 
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-                }} 
-              />
-              <Line 
-                type="monotone" 
-                dataKey={dataKey} 
-                stroke={colors[0]} 
-                strokeWidth={2}
-                dot={{ r: 4, strokeWidth: 2, fill: 'white' }}
-                activeDot={{ r: 6, strokeWidth: 0, fill: colors[0] }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        );
+        return [{
+          x: data.map(item => item[nameKey]),
+          y: data.map(item => item[dataKey]),
+          type: 'scatter',
+          mode: 'lines+markers',
+          line: { color: colors[0] }
+        }];
       
       case 'pie':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                innerRadius={60}
-                outerRadius={80}
-                paddingAngle={2}
-                dataKey={dataKey}
-                nameKey={nameKey}
-              >
-                {data.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.8)', 
-                  borderRadius: '0.5rem',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(229, 231, 235, 0.5)', 
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-                }} 
-              />
-              <Legend verticalAlign="bottom" height={36} />
-            </PieChart>
-          </ResponsiveContainer>
-        );
+        return [{
+          labels: data.map(item => item[nameKey]),
+          values: data.map(item => item[dataKey]),
+          type: 'pie',
+          marker: {
+            colors: data.map((_, index) => colors[index % colors.length])
+          }
+        }];
         
       case 'area':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-              <XAxis 
-                dataKey={nameKey} 
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-                axisLine={{ stroke: '#e5e7eb', strokeWidth: 1 }}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }} 
-                tickLine={false}
-                axisLine={{ stroke: '#e5e7eb', strokeWidth: 1 }}
-                width={40}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.8)', 
-                  borderRadius: '0.5rem',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(229, 231, 235, 0.5)', 
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-                }} 
-              />
-              <Area 
-                type="monotone" 
-                dataKey={dataKey} 
-                stroke={colors[0]}
-                fillOpacity={0.3}
-                fill={colors[0]}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        );
+        return [{
+          x: data.map(item => item[nameKey]),
+          y: data.map(item => item[dataKey]),
+          type: 'scatter',
+          mode: 'lines',
+          fill: 'tozeroy',
+          line: { color: colors[0] }
+        }];
       
       default:
-        return <div>Chart type not supported</div>;
+        return [];
     }
+  };
+
+  const getPlotLayout = () => {
+    const baseLayout = {
+      title: '',
+      autosize: true,
+      margin: { l: 40, r: 20, t: 30, b: 40 },
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      plot_bgcolor: 'rgba(0,0,0,0)',
+      font: {
+        family: 'Inter, sans-serif',
+        size: 12,
+        color: '#6b7280'
+      }
+    };
+    
+    // Specific layout adjustments per chart type
+    switch (chartType) {
+      case 'pie':
+        return {
+          ...baseLayout,
+          height: expanded ? undefined : 236,
+          showlegend: true,
+          legend: { orientation: 'h', y: -0.2 }
+        };
+      default:
+        return {
+          ...baseLayout,
+          height: expanded ? undefined : 236,
+          xaxis: {
+            gridcolor: 'rgba(229, 231, 235, 0.5)',
+            zerolinecolor: 'rgba(229, 231, 235, 0.5)'
+          },
+          yaxis: {
+            gridcolor: 'rgba(229, 231, 235, 0.5)',
+            zerolinecolor: 'rgba(229, 231, 235, 0.5)'
+          }
+        };
+    }
+  };
+
+  const getPlotConfig = () => {
+    return {
+      displayModeBar: false, // Hide the modebar
+      responsive: true
+    };
   };
 
   return (
@@ -261,7 +272,13 @@ const ChartCard = ({
       </div>
       
       <div className="h-[calc(100%-64px)]">
-        {renderChart()}
+        <Plot
+          ref={plotRef}
+          data={getPlotData()}
+          layout={getPlotLayout()}
+          config={getPlotConfig()}
+          style={{ width: '100%', height: '100%' }}
+        />
       </div>
     </div>
   );
