@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Plot from 'react-plotly.js';
 import { PlotData, Layout } from 'plotly.js';
-import { Download, Maximize2, Minimize2, Link, Check, Copy } from 'lucide-react';
+import { Download, Maximize2, Minimize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -35,28 +35,9 @@ const ChartCard = ({
   colors = defaultColors
 }: ChartCardProps) => {
   const [expanded, setExpanded] = useState(false);
-  const [copied, setCopied] = useState(false);
   
   // Generate a unique ID for this chart
   const chartId = `chart-${title.toLowerCase().replace(/\s+/g, '-')}-${chartType}`;
-  
-  // Create shareable link with encoded chart data
-  const createShareableLink = () => {
-    const params = new URLSearchParams();
-    params.set('chart', chartId);
-    params.set('type', chartType);
-    params.set('title', title);
-    params.set('dataKey', dataKey);
-    params.set('nameKey', nameKey);
-    
-    // Safely encode the data as a JSON string
-    const encodedData = encodeURIComponent(JSON.stringify(data));
-    params.set('data', encodedData);
-    
-    return `${window.location.origin}/?${params.toString()}`;
-  };
-  
-  const shareableLink = createShareableLink();
   
   const toggleExpand = () => {
     setExpanded(!expanded);
@@ -84,16 +65,6 @@ const ChartCard = ({
     } else {
       toast.error('Cannot find chart element to download');
     }
-  };
-
-  const copyShareableLink = () => {
-    navigator.clipboard.writeText(shareableLink);
-    setCopied(true);
-    toast.success('Link copied to clipboard');
-    
-    setTimeout(() => {
-      setCopied(false);
-    }, 2000);
   };
 
   // Convert the data for Plotly
@@ -209,19 +180,6 @@ const ChartCard = ({
           )}
         </div>
         <div className="flex space-x-1">
-          <button 
-            onClick={copyShareableLink}
-            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
-            aria-label="Copy shareable link"
-            title="Copy shareable link"
-          >
-            {copied ? (
-              <Check className="h-4 w-4 text-green-500" />
-            ) : (
-              <Link className="h-4 w-4" />
-            )}
-          </button>
-          
           <button 
             onClick={downloadChart}
             className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"

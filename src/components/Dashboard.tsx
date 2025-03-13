@@ -1,8 +1,7 @@
 
 import { useState, useEffect } from 'react';
-import { cn } from '@/lib/utils';
 import ChartCard from './ChartCard';
-import { Download, Calendar, Share2, CheckCircle } from 'lucide-react';
+import { Download, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface DashboardProps {
@@ -19,36 +18,12 @@ const Dashboard = ({
   isSharedView = false
 }: DashboardProps) => {
   const [showDashboard, setShowDashboard] = useState(false);
-  const [copied, setCopied] = useState(false);
   
   useEffect(() => {
     if (data && !isLoading) {
       setShowDashboard(true);
     }
   }, [data, isLoading]);
-  
-  const handleShareDashboard = () => {
-    // Create a unique ID based on the query (in a real app this would be a proper UUID)
-    const dashboardId = query.toLowerCase().includes('revenue') 
-      ? 'revenue-analysis' 
-      : query.toLowerCase().includes('users') 
-        ? 'users-analysis'
-        : query.toLowerCase().includes('conversion')
-          ? 'conversion-analysis'
-          : 'data-analysis';
-    
-    // Create the shareable URL
-    const shareableUrl = `${window.location.origin}/?dashboard=${dashboardId}`;
-    
-    // Copy to clipboard
-    navigator.clipboard.writeText(shareableUrl);
-    setCopied(true);
-    toast.success('Dashboard link copied to clipboard');
-    
-    setTimeout(() => {
-      setCopied(false);
-    }, 3000);
-  };
   
   if (!showDashboard) return null;
   
@@ -74,31 +49,12 @@ const Dashboard = ({
             </div>
             
             <div className="flex items-center space-x-2">
-              {!isSharedView && (
-                <button 
-                  className={cn(
-                    "flex items-center space-x-2 bg-secondary px-3 py-2 rounded-md hover:bg-secondary/80 transition-colors text-sm",
-                    copied && "bg-green-100 text-green-700"
-                  )}
-                  onClick={handleShareDashboard}
-                >
-                  {copied ? (
-                    <>
-                      <CheckCircle className="h-4 w-4" />
-                      <span>Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Share2 className="h-4 w-4" />
-                      <span>Share Dashboard</span>
-                    </>
-                  )}
-                </button>
-              )}
-              
               <button 
                 className="flex items-center space-x-2 bg-secondary px-3 py-2 rounded-md hover:bg-secondary/80 transition-colors text-sm" 
-                onClick={() => console.log('Download dashboard')}
+                onClick={() => {
+                  console.log('Download dashboard');
+                  toast.info('Dashboard export feature coming soon');
+                }}
               >
                 <Download className="h-4 w-4" />
                 <span>Export Dashboard</span>
