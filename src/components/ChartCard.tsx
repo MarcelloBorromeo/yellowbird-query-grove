@@ -4,6 +4,7 @@ import Plot from 'react-plotly.js';
 import { Download, Maximize2, Minimize2, Link, Check, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { PlotData, Layout } from 'plotly.js';
 
 interface ChartCardProps {
   title: string;
@@ -128,7 +129,7 @@ const ChartCard = ({
     }
   };
 
-  const getPlotData = () => {
+  const getPlotData = (): Partial<PlotData>[] => {
     // Transform data according to chart type
     switch (chartType) {
       case 'bar':
@@ -175,8 +176,8 @@ const ChartCard = ({
     }
   };
 
-  const getPlotLayout = () => {
-    const baseLayout = {
+  const getPlotLayout = (): Partial<Layout> => {
+    const baseLayout: Partial<Layout> = {
       title: '',
       autosize: true,
       margin: { l: 40, r: 20, t: 30, b: 40 },
@@ -196,7 +197,7 @@ const ChartCard = ({
           ...baseLayout,
           height: expanded ? undefined : 236,
           showlegend: true,
-          legend: { orientation: 'h', y: -0.2 }
+          legend: { orientation: 'h' as 'h', y: -0.2 }
         };
       default:
         return {
