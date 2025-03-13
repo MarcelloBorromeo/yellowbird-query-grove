@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import QueryInput from '@/components/QueryInput';
@@ -166,32 +165,6 @@ const Index = () => {
     }
   };
   
-  const handleRunModifiedSql = async (modifiedSql: string) => {
-    setIsProcessing(true);
-    
-    try {
-      // In a real app, you would execute the modified SQL directly
-      // Here we'll simulate the execution
-      setSqlQuery(modifiedSql);
-      
-      // Generate mock data based on the modified SQL
-      setTimeout(async () => {
-        const data = await generateMockData(userQuery);
-        setDashboardData(data);
-        
-        setResponse("I've analyzed the data based on your modified SQL query. The visualizations below show the results of your customized SQL query.");
-        
-        toast.success("Modified SQL query executed successfully");
-      }, 1000);
-    } catch (error) {
-      console.error("Error processing modified SQL:", error);
-      setHasError(true);
-      toast.error("An error occurred while processing your modified SQL");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-  
   const handleSelectSuggestion = (suggestion: string) => {
     handleSubmitQuery(suggestion);
   };
@@ -239,7 +212,6 @@ const Index = () => {
               sqlQuery={sqlQuery}
               hasError={hasError}
               retryCount={retryCount}
-              onRunModifiedSql={handleRunModifiedSql}
             />
             <ResponseContainer
               response={response}

@@ -1,8 +1,7 @@
 
 import { useEffect, useState } from 'react';
-import { Code, Database, RefreshCw, Check, AlertTriangle, Pencil, Eye, PlayCircle } from 'lucide-react';
+import { Code, Database, RefreshCw, Check, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 
 interface QueryProcessProps {
@@ -23,42 +22,12 @@ const QueryProcess = ({
   onRunModifiedSql
 }: QueryProcessProps) => {
   const [showProcess, setShowProcess] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [modifiedSql, setModifiedSql] = useState('');
   
   useEffect(() => {
     if (userQuery) {
       setShowProcess(true);
     }
   }, [userQuery]);
-  
-  useEffect(() => {
-    if (!sqlQuery) {
-      setModifiedSql('');
-      return;
-    }
-    
-    setModifiedSql(sqlQuery);
-  }, [sqlQuery]);
-  
-  const handleToggleEditMode = (checked: boolean) => {
-    setIsEditMode(checked);
-    
-    if (checked) {
-      toast.info("SQL Edit Mode activated. You can now modify the SQL query directly.");
-    } else {
-      toast.info("Read-Only Mode activated. SQL query is view-only.");
-    }
-  };
-  
-  const handleRunModifiedSql = () => {
-    if (onRunModifiedSql && modifiedSql.trim()) {
-      onRunModifiedSql(modifiedSql);
-      toast.success("Running modified SQL query");
-    } else {
-      toast.error("Please provide a valid SQL query");
-    }
-  };
   
   if (!showProcess) return null;
   
@@ -104,64 +73,25 @@ const QueryProcess = ({
                 }
               </h3>
             </div>
-            
-            {!isProcessing && !hasError && sqlQuery && (
-              <div className="flex items-center space-x-2">
-                <span className="text-xs text-muted-foreground">
-                  {isEditMode ? <Pencil className="h-3 w-3 inline mr-1" /> : <Eye className="h-3 w-3 inline mr-1" />}
-                  {isEditMode ? "Edit Mode" : "Read-Only"}
-                </span>
-                <Switch
-                  checked={isEditMode}
-                  onCheckedChange={handleToggleEditMode}
-                  className="data-[state=checked]:bg-yellowbird-500"
-                />
-              </div>
-            )}
           </div>
           
           {/* SQL Output */}
-          {sqlQuery || modifiedSql ? (
+          {sqlQuery ? (
             <div className="mt-2 pl-8">
               <div className="relative">
-                {isEditMode ? (
-                  <div className="relative">
-                    <textarea
-                      value={modifiedSql}
-                      onChange={(e) => setModifiedSql(e.target.value)}
-                      className="w-full text-xs font-mono bg-secondary/30 p-3 rounded-md overflow-x-auto max-h-72 min-h-[120px] scrollbar-thin focus:ring-1 focus:ring-yellowbird-500 focus:outline-none"
-                    />
-                    <div className="absolute top-2 right-2 flex space-x-2">
-                      <button 
-                        className="text-xs bg-yellowbird-500 hover:bg-yellowbird-600 text-white px-3 py-1 rounded flex items-center space-x-1"
-                        onClick={handleRunModifiedSql}
-                      >
-                        <PlayCircle className="h-3 w-3" />
-                        <span>Run</span>
-                      </button>
-                      <button 
-                        className="text-xs bg-secondary/50 hover:bg-secondary px-2 py-1 rounded text-muted-foreground hover:text-foreground transition-colors"
-                        onClick={() => navigator.clipboard.writeText(modifiedSql || '')}
-                      >
-                        Copy
-                      </button>
-                    </div>
+                <div className="relative">
+                  <pre className="text-xs font-mono bg-secondary/30 p-3 rounded-md overflow-x-auto max-h-72 scrollbar-thin">
+                    <code>{sqlQuery}</code>
+                  </pre>
+                  <div className="absolute top-2 right-2">
+                    <button 
+                      className="text-xs bg-secondary/50 hover:bg-secondary px-2 py-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => navigator.clipboard.writeText(sqlQuery || '')}
+                    >
+                      Copy
+                    </button>
                   </div>
-                ) : (
-                  <div className="relative">
-                    <pre className="text-xs font-mono bg-secondary/30 p-3 rounded-md overflow-x-auto max-h-72 scrollbar-thin">
-                      <code>{sqlQuery}</code>
-                    </pre>
-                    <div className="absolute top-2 right-2">
-                      <button 
-                        className="text-xs bg-secondary/50 hover:bg-secondary px-2 py-1 rounded text-muted-foreground hover:text-foreground transition-colors"
-                        onClick={() => navigator.clipboard.writeText(sqlQuery || '')}
-                      >
-                        Copy
-                      </button>
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
             </div>
           ) : (
