@@ -244,9 +244,8 @@ const ChartCard = ({
         </div>
       </div>
       
-      <div className="h-[calc(100%-64px)]">
+      <div className="h-[calc(100%-64px)]" id={chartId}>
         <Plot
-          id={chartId}
           data={getPlotData()}
           layout={getLayout()}
           config={plotConfig}
