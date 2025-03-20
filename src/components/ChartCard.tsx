@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import { PlotData, Layout } from 'plotly.js';
 import { Download, Maximize2, Minimize2 } from 'lucide-react';
@@ -41,6 +40,14 @@ const ChartCard = ({
   
   const toggleExpand = () => {
     setExpanded(!expanded);
+    // Add a small delay to allow the transition to complete before resizing Plotly
+    if (!expanded) {
+      document.body.style.overflow = 'hidden'; // Prevent scrolling when expanded
+    } else {
+      setTimeout(() => {
+        document.body.style.overflow = 'auto'; // Re-enable scrolling when minimized
+      }, 300);
+    }
   };
   
   const downloadChart = () => {
@@ -169,7 +176,7 @@ const ChartCard = ({
     <div 
       className={cn(
         "glass-card rounded-xl overflow-hidden transition-all duration-300 ease-in-out animate-fade-in",
-        expanded ? "fixed inset-4 z-50" : "h-[300px]"
+        expanded ? "fixed inset-0 z-50 m-0" : "h-[350px]"
       )}
     >
       <div className="p-4 flex justify-between items-start">
@@ -202,12 +209,17 @@ const ChartCard = ({
         </div>
       </div>
       
-      <div className="h-[calc(100%-64px)]" id={chartId}>
+      <div className={cn("w-full", expanded ? "h-[calc(100%-64px)]" : "h-[calc(350px-64px)]")} id={chartId}>
         <Plot
           data={getPlotData()}
-          layout={getLayout()}
+          layout={{
+            ...getLayout(),
+            height: expanded ? '100%' : undefined,
+            width: expanded ? '100%' : undefined
+          }}
           config={plotConfig}
           style={{ width: '100%', height: '100%' }}
+          useResizeHandler={true}
         />
       </div>
     </div>
