@@ -21,6 +21,7 @@ const PlotlyVisualization = ({
   const [expanded, setExpanded] = useState(false);
   const [processedFigure, setProcessedFigure] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [plotHeight, setPlotHeight] = useState(280); // Default height for non-expanded view
   
   // Generate a unique ID for this chart
   const chartId = `plotly-${title.toLowerCase().replace(/\s+/g, '-')}-${type}`;
@@ -88,6 +89,19 @@ const PlotlyVisualization = ({
           figData.layout = {};
         }
         
+        // Calculate an appropriate height based on data complexity
+        const dataPoints = figData.data.reduce((total: number, trace: any) => {
+          let points = 0;
+          if (trace.x && Array.isArray(trace.x)) points += trace.x.length;
+          if (trace.y && Array.isArray(trace.y)) points += trace.y.length;
+          if (trace.labels && Array.isArray(trace.labels)) points += trace.labels.length;
+          return total + points;
+        }, 0);
+        
+        // Adjust height based on data complexity, with minimum and maximum values
+        const calculatedHeight = Math.max(280, Math.min(500, 280 + (dataPoints / 10)));
+        setPlotHeight(calculatedHeight);
+        
         setProcessedFigure(figData);
         setError(null);
       } catch (error) {
@@ -154,8 +168,9 @@ const PlotlyVisualization = ({
     <div 
       className={cn(
         "glass-card rounded-xl overflow-hidden transition-all duration-300 ease-in-out animate-fade-in",
-        expanded ? "fixed inset-0 z-50 m-0" : "h-[350px]"
+        expanded ? "fixed inset-0 z-50 m-0" : `h-[${plotHeight}px]`
       )}
+      style={{ height: expanded ? '100vh' : `${plotHeight}px` }}
     >
       <div className="p-4 flex justify-between items-start">
         <div>
@@ -187,7 +202,11 @@ const PlotlyVisualization = ({
         </div>
       </div>
       
-      <div className={cn("w-full", expanded ? "h-[calc(100%-64px)]" : "h-[calc(350px-64px)]")} id={chartId}>
+      <div 
+        className={cn("w-full", expanded ? "h-[calc(100%-64px)]" : `h-[calc(${plotHeight}px-64px)]`)} 
+        style={{ height: expanded ? 'calc(100vh - 64px)' : `calc(${plotHeight}px - 64px)` }}
+        id={chartId}
+      >
         <Plot
           data={processedFigure.data}
           layout={{

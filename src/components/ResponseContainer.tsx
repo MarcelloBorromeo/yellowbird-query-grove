@@ -47,7 +47,7 @@ const ResponseContainer = ({ response, isLoading }: ResponseContainerProps) => {
                 <div className="w-2 h-2 rounded-full bg-accent/40 animate-pulse animate-delay-200"></div>
               </div>
             ) : (
-              <ScrollArea className="pr-4 max-h-[500px] overflow-y-auto">
+              <ScrollArea className="pr-4 overflow-y-auto">
                 <div className="text-muted-foreground pb-2">
                   {response ? formatResponse(response) : (
                     <p>Based on your query, I've analyzed the data and found the key patterns shown in the visualization below.</p>
