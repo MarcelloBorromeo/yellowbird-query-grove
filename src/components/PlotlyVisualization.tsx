@@ -29,30 +29,70 @@ const PlotlyVisualization = ({
     // Process the figure data to ensure it's in the right format for Plotly
     if (figure) {
       try {
+        console.log(`Processing figure for ${type} chart:`, typeof figure);
+        
         // If figure is a string, try to parse it
-        const figData = typeof figure === 'string' ? JSON.parse(figure) : figure;
-        console.log('Processing figure data for Plotly:', type);
+        let figData;
+        if (typeof figure === 'string') {
+          try {
+            figData = JSON.parse(figure);
+            console.log('Successfully parsed figure string to JSON');
+          } catch (parseError) {
+            console.error('Error parsing figure string:', parseError);
+            setError('Invalid figure data format (JSON parse error)');
+            return;
+          }
+        } else {
+          figData = figure;
+        }
+        
+        // Handle missing data property
+        if (!figData.data) {
+          console.warn('Figure missing data property, attempting to construct it');
+          if (figData.type && (figData.x || figData.y || figData.labels || figData.values)) {
+            // It seems the figure itself is a trace, wrap it in the proper structure
+            figData = {
+              data: [figData],
+              layout: figData.layout || {}
+            };
+          }
+        }
         
         // Ensure data property exists and is an array
         if (!figData.data || !Array.isArray(figData.data)) {
-          console.error('Invalid figure data format:', figData);
-          setError('Invalid figure data format');
+          console.error('Invalid figure data format after processing:', figData);
+          setError('Invalid figure data format (missing data array)');
           return;
         }
         
         // Ensure each data trace has necessary properties
         figData.data.forEach((trace: any, i: number) => {
-          if (!trace.type) trace.type = type;
+          if (!trace.type) {
+            trace.type = type;
+            console.log(`Set trace ${i} type to ${type}`);
+          }
+          
+          // Add debugging info
           console.log(`Trace ${i} type:`, trace.type);
-          console.log(`Trace ${i} has x data:`, !!trace.x);
-          console.log(`Trace ${i} has y data:`, !!trace.y);
+          if (trace.type === 'pie') {
+            console.log(`Pie chart has labels:`, !!trace.labels);
+            console.log(`Pie chart has values:`, !!trace.values);
+          } else {
+            console.log(`Trace ${i} has x data:`, !!trace.x);
+            console.log(`Trace ${i} has y data:`, !!trace.y);
+          }
         });
+        
+        // Ensure layout exists
+        if (!figData.layout) {
+          figData.layout = {};
+        }
         
         setProcessedFigure(figData);
         setError(null);
       } catch (error) {
         console.error('Error processing figure data:', error);
-        setError('Error processing figure data');
+        setError(`Error processing figure data: ${error}`);
         setProcessedFigure(null);
       }
     } else {
@@ -151,7 +191,8 @@ const PlotlyVisualization = ({
               size: 12
             },
             paper_bgcolor: 'rgba(0,0,0,0)',
-            plot_bgcolor: 'rgba(0,0,0,0)'
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            height: expanded ? 'auto' : undefined
           }}
           config={{
             displayModeBar: false,

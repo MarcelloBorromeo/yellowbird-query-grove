@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import ChartCard from './ChartCard';
 import PlotlyVisualization from './PlotlyVisualization';
-import { Download, Calendar } from 'lucide-react';
+import { Download, Calendar, TestTube2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { QueryResult } from '@/lib/queryService';
+
 interface DashboardProps {
   data: any[] | null;
   isLoading: boolean;
@@ -11,6 +12,7 @@ interface DashboardProps {
   isSharedView?: boolean;
   visualizations?: QueryResult['visualizations'];
 }
+
 const Dashboard = ({
   data,
   isLoading,
@@ -19,17 +21,32 @@ const Dashboard = ({
   visualizations = []
 }: DashboardProps) => {
   const [showDashboard, setShowDashboard] = useState(false);
+  
   useEffect(() => {
-    if (data && !isLoading || visualizations && visualizations.length > 0) {
+    if ((data && !isLoading) || (visualizations && visualizations.length > 0)) {
       setShowDashboard(true);
     }
   }, [data, isLoading, visualizations]);
+  
   useEffect(() => {
     // For debugging
     if (visualizations && visualizations.length > 0) {
       console.log('Dashboard received visualizations:', visualizations.length);
-      console.log('First visualization type:', visualizations[0].type);
-      console.log('First visualization figure:', visualizations[0].figure);
+      visualizations.forEach((viz, idx) => {
+        console.log(`Visualization ${idx+1} type:`, viz.type);
+        console.log(`Visualization ${idx+1} has figure:`, !!viz.figure);
+        
+        // Check that the figure has correct properties
+        if (viz.figure) {
+          try {
+            const figData = typeof viz.figure === 'string' ? JSON.parse(viz.figure) : viz.figure;
+            console.log(`Visualization ${idx+1} has data:`, !!figData.data);
+            console.log(`Visualization ${idx+1} has layout:`, !!figData.layout);
+          } catch (e) {
+            console.error(`Error parsing visualization ${idx+1} figure:`, e);
+          }
+        }
+      });
     } else {
       console.log('No visualizations available in Dashboard');
     }
@@ -42,6 +59,7 @@ const Dashboard = ({
       const response = await fetch('http://localhost:5001/api/test-visualization');
       const result = await response.json();
       console.log('Test visualization result:', result);
+      
       if (result.visualizations && result.visualizations.length > 0) {
         console.log('Test visualization succeeded');
         toast.success('Test visualization loaded successfully');
@@ -54,6 +72,7 @@ const Dashboard = ({
       toast.error(`Test visualization failed: ${error}`);
     }
   };
+  
   if (!showDashboard) return null;
 
   // Helper function to determine chart types based on query
@@ -72,8 +91,11 @@ const Dashboard = ({
       return ['bar', 'pie', 'line', 'area'];
     }
   };
+  
   const chartTypes = determineChartTypes(query);
-  return <div className="w-full mt-8 mb-20 animate-fade-in-up">
+  
+  return (
+    <div className="w-full mt-8 mb-20 animate-fade-in-up">
       <div className="container px-4 mx-auto">
         <div className="bg-card/40 backdrop-blur-sm border border-border rounded-xl p-6 pb-8">
           <div className="flex justify-between items-center mb-6">
@@ -92,12 +114,22 @@ const Dashboard = ({
             </div>
             
             <div className="flex items-center space-x-2">
+              <button 
+                className="flex items-center space-x-2 bg-indigo-100 text-indigo-600 px-3 py-2 rounded-md hover:bg-indigo-200 transition-colors text-sm"
+                onClick={testVisualizations}
+                title="Run a test visualization to debug issues"
+              >
+                <TestTube2 className="h-4 w-4" />
+                <span>Test Viz</span>
+              </button>
               
-              
-              <button className="flex items-center space-x-2 bg-secondary px-3 py-2 rounded-md hover:bg-secondary/80 transition-colors text-sm" onClick={() => {
-              console.log('Download dashboard');
-              toast.info('Dashboard export feature coming soon');
-            }}>
+              <button 
+                className="flex items-center space-x-2 bg-secondary px-3 py-2 rounded-md hover:bg-secondary/80 transition-colors text-sm" 
+                onClick={() => {
+                  console.log('Download dashboard');
+                  toast.info('Dashboard export feature coming soon');
+                }}
+              >
                 <Download className="h-4 w-4" />
                 <span>Export Dashboard</span>
               </button>
@@ -105,22 +137,50 @@ const Dashboard = ({
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* First, try to render Plotly visualizations if available */}
-            {visualizations && visualizations.length > 0 ?
-          // Map through the visualizations from the backend
-          visualizations.map((viz, index) => <PlotlyVisualization key={`viz-${index}`} title={viz.description || viz.type.charAt(0).toUpperCase() + viz.type.slice(1) + ' Chart'} description={viz.reason || 'Generated visualization'} figure={viz.figure} type={viz.type} />) : data && data.length > 0 ?
-          // Fallback to recharts visualizations if Plotly data not available
-          <>
-                <ChartCard title="Primary Visualization" description="Main chart for your query" chartType={chartTypes[0] as 'bar' | 'line' | 'pie' | 'area'} data={data} dataKey="value" nameKey="name" />
+            {visualizations && visualizations.length > 0 ? (
+              // Map through the visualizations from the backend
+              visualizations.map((viz, index) => (
+                <PlotlyVisualization 
+                  key={`viz-${index}`} 
+                  title={viz.description || viz.type.charAt(0).toUpperCase() + viz.type.slice(1) + ' Chart'} 
+                  description={viz.reason || 'Generated visualization'} 
+                  figure={viz.figure} 
+                  type={viz.type} 
+                />
+              ))
+            ) : data && data.length > 0 ? (
+              // Fallback to recharts visualizations if Plotly data not available
+              <>
+                <ChartCard 
+                  title="Primary Visualization" 
+                  description="Main chart for your query" 
+                  chartType={chartTypes[0] as 'bar' | 'line' | 'pie' | 'area'} 
+                  data={data} 
+                  dataKey="value" 
+                  nameKey="name" 
+                />
                 
-                {chartTypes.length > 1 && <ChartCard title="Alternative View" description="Different perspective on the data" chartType={chartTypes[1] as 'bar' | 'line' | 'pie' | 'area'} data={data} dataKey="value" nameKey="name" />}
-              </> : <div className="col-span-2 flex flex-col justify-center items-center h-60">
+                {chartTypes.length > 1 && (
+                  <ChartCard 
+                    title="Alternative View" 
+                    description="Different perspective on the data" 
+                    chartType={chartTypes[1] as 'bar' | 'line' | 'pie' | 'area'} 
+                    data={data} 
+                    dataKey="value" 
+                    nameKey="name" 
+                  />
+                )}
+              </>
+            ) : (
+              <div className="col-span-2 flex flex-col justify-center items-center h-60">
                 <p className="text-muted-foreground mb-4">No visualization data available</p>
-                
-              </div>}
+              </div>
+            )}
           </div>
         </div>
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default Dashboard;
