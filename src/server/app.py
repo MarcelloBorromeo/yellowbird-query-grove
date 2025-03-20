@@ -5,6 +5,7 @@ import json
 import sys
 import os
 import traceback
+import numpy as np
 
 # Add the directory containing the Python module to the path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -117,6 +118,9 @@ def process_result_for_json(result):
                 else:
                     fig_dict = viz["figure"]
                 
+                # Handle numpy arrays in the figure data
+                fig_dict = _numpy_to_python_types(fig_dict)
+                
                 processed_viz.append({
                     "type": viz.get("type", ""),
                     "figure": fig_dict,
@@ -127,6 +131,23 @@ def process_result_for_json(result):
         processed["visualizations"] = processed_viz
     
     return processed
+
+def _numpy_to_python_types(obj):
+    """Convert numpy types to native Python types for JSON serialization"""
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {k: _numpy_to_python_types(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_numpy_to_python_types(i) for i in obj]
+    elif isinstance(obj, tuple):
+        return tuple(_numpy_to_python_types(i) for i in obj)
+    else:
+        return obj
 
 if __name__ == '__main__':
     PORT = 5001

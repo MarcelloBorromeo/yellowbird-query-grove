@@ -34,6 +34,7 @@ const Dashboard = ({
     if (visualizations && visualizations.length > 0) {
       console.log('Dashboard received visualizations:', visualizations.length);
       console.log('First visualization type:', visualizations[0].type);
+      console.log('First visualization figure:', visualizations[0].figure);
     }
   }, [visualizations]);
   
@@ -102,8 +103,8 @@ const Dashboard = ({
               visualizations.map((viz, index) => (
                 <PlotlyVisualization
                   key={`viz-${index}`}
-                  title={viz.type.charAt(0).toUpperCase() + viz.type.slice(1) + ' Chart'}
-                  description={viz.description || 'Generated visualization'}
+                  title={viz.description || (viz.type.charAt(0).toUpperCase() + viz.type.slice(1) + ' Chart')}
+                  description={viz.reason || 'Generated visualization'}
                   figure={viz.figure}
                   type={viz.type}
                 />
