@@ -139,44 +139,63 @@ function transformDataFromPython(result: any): DataPoint[] {
   // Extract data from the first visualization
   const firstViz = result.visualizations[0];
   
-  if (firstViz.type === 'pie') {
-    // For pie charts, we extract names and values
-    const figData = firstViz.figure.data[0];
-    return figData.labels.map((label: string, index: number) => ({
-      name: label,
-      value: figData.values[index]
-    }));
-  } else if (firstViz.type === 'bar' || firstViz.type === 'line' || firstViz.type === 'scatter') {
-    // For bar/line/scatter charts, we extract x and y values
-    const figData = firstViz.figure.data[0];
-    return figData.x.map((xValue: string, index: number) => ({
-      name: xValue.toString(),
-      value: figData.y[index]
-    }));
-  } else if (firstViz.type === 'histogram') {
-    // For histograms, we need to process bin data
-    const figData = firstViz.figure.data[0];
-    // Use bin midpoints as names and heights as values
-    const binMidpoints = figData.x.map((val: number, i: number) => 
-      i < figData.x.length - 1 ? (val + figData.x[i+1])/2 : val);
-    
-    return binMidpoints.map((midpoint: number, index: number) => ({
-      name: midpoint.toFixed(2),
-      value: figData.y[index]
-    }));
+  // Check if figure data is valid
+  if (!firstViz.figure || !firstViz.figure.data || !firstViz.figure.data.length) {
+    console.error('Invalid visualization figure data format');
+    return [];
+  }
+  
+  try {
+    if (firstViz.type === 'pie') {
+      // For pie charts, we extract names and values
+      const figData = firstViz.figure.data[0];
+      return figData.labels.map((label: string, index: number) => ({
+        name: label,
+        value: figData.values[index]
+      }));
+    } else if (firstViz.type === 'bar' || firstViz.type === 'line' || firstViz.type === 'scatter') {
+      // For bar/line/scatter charts, we extract x and y values
+      const figData = firstViz.figure.data[0];
+      if (!figData.x || !figData.y) {
+        console.error('Incomplete x/y data in figure');
+        return [];
+      }
+      return figData.x.map((xValue: string, index: number) => ({
+        name: String(xValue), // Ensure name is a string
+        value: Number(figData.y[index]) // Ensure value is a number
+      }));
+    } else if (firstViz.type === 'histogram') {
+      // For histograms, we need to process bin data
+      const figData = firstViz.figure.data[0];
+      // Use bin midpoints as names and heights as values
+      if (!figData.x || !figData.y) {
+        console.error('Incomplete histogram data');
+        return [];
+      }
+      const binMidpoints = figData.x.map((val: number, i: number) => 
+        i < figData.x.length - 1 ? (val + figData.x[i+1])/2 : val);
+      
+      return binMidpoints.map((midpoint: number, index: number) => ({
+        name: midpoint.toFixed(2),
+        value: figData.y[index]
+      }));
+    }
+  } catch (err) {
+    console.error('Error extracting data from visualization:', err);
+    return [];
   }
   
   // Default fallback - try to extract any data we can
   try {
     const figData = firstViz.figure.data[0];
     if (figData.x && figData.y) {
-      return figData.x.map((xValue: string, index: number) => ({
-        name: xValue.toString(),
-        value: figData.y[index]
+      return figData.x.map((xValue: any, index: number) => ({
+        name: String(xValue),
+        value: Number(figData.y[index])
       }));
     }
   } catch (err) {
-    console.error('Error extracting data from visualization:', err);
+    console.error('Error in fallback data extraction:', err);
   }
   
   return [];

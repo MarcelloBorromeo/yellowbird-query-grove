@@ -35,8 +35,30 @@ const Dashboard = ({
       console.log('Dashboard received visualizations:', visualizations.length);
       console.log('First visualization type:', visualizations[0].type);
       console.log('First visualization figure:', visualizations[0].figure);
+    } else {
+      console.log('No visualizations available in Dashboard');
     }
   }, [visualizations]);
+  
+  // Test endpoint for when visualizations aren't showing up
+  const testVisualizations = async () => {
+    try {
+      console.log('Testing visualization endpoint');
+      const response = await fetch('http://localhost:5001/api/test-visualization');
+      const result = await response.json();
+      console.log('Test visualization result:', result);
+      if (result.visualizations && result.visualizations.length > 0) {
+        console.log('Test visualization succeeded');
+        toast.success('Test visualization loaded successfully');
+      } else {
+        console.log('Test visualization returned no visualizations');
+        toast.error('Test visualization failed');
+      }
+    } catch (error) {
+      console.error('Test visualization failed:', error);
+      toast.error(`Test visualization failed: ${error}`);
+    }
+  };
   
   if (!showDashboard) return null;
   
@@ -83,6 +105,17 @@ const Dashboard = ({
             </div>
             
             <div className="flex items-center space-x-2">
+              <button 
+                className="flex items-center space-x-2 bg-secondary px-3 py-2 rounded-md hover:bg-secondary/80 transition-colors text-sm" 
+                onClick={() => {
+                  console.log('Testing visualizations');
+                  testVisualizations();
+                }}
+              >
+                <Download className="h-4 w-4" />
+                <span>Test Visualizations</span>
+              </button>
+              
               <button 
                 className="flex items-center space-x-2 bg-secondary px-3 py-2 rounded-md hover:bg-secondary/80 transition-colors text-sm" 
                 onClick={() => {
@@ -133,8 +166,14 @@ const Dashboard = ({
                 )}
               </>
             ) : (
-              <div className="col-span-2 flex justify-center items-center h-60">
-                <p className="text-muted-foreground">No data available to display</p>
+              <div className="col-span-2 flex flex-col justify-center items-center h-60">
+                <p className="text-muted-foreground mb-4">No visualization data available</p>
+                <button 
+                  onClick={testVisualizations}
+                  className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors"
+                >
+                  Test Visualization System
+                </button>
               </div>
             )}
           </div>

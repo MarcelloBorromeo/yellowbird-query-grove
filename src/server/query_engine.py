@@ -334,7 +334,7 @@ def _get_viz_recommendations(analysis, question, numeric_cols, categorical_cols,
     
     For each visualization, specify:
     - Type (must be one of the five options above)
-    - Columns to use (x-axis, y-axis, color by, etc.). Be sure to label the axes appropriately.  
+    - Columns to use (x-axis, y-axis, color by, etc.). Be sure to label the axes appropriately.  Be sure to label the axes appropriately.
     - Title (decide on the title name)
     
     Determine the optimal number of visualizations (1-3) based on what would be most informative.
@@ -680,7 +680,7 @@ def _make_json_serializable(obj):
         return obj.tolist()
     elif isinstance(obj, np.bool_):
         return bool(obj)
-    elif isinstance(obj, (dict, pd._libs.properties.AxisProperty)):
+    elif isinstance(obj, dict):
         return {k: _make_json_serializable(v) for k, v in obj.items()}
     elif isinstance(obj, list) or isinstance(obj, tuple):
         return [_make_json_serializable(i) for i in obj]
@@ -702,30 +702,31 @@ def display_results(result: Dict[str, Any]) -> None:
             print(f"   Reason: {viz.get('reason', 'No reason provided')}")
             viz['figure'].show()  # Display the Plotly figure inline
 
-# Force create a visualization for test purposes
+# Create a more reliable test visualization with complete data for debugging
 def create_test_visualization():
     """Create a test visualization to ensure the frontend can display it"""
     # Sample data
     df = pd.DataFrame({
-        'Category': ['A', 'B', 'C', 'D', 'E'],
-        'Values': [10, 20, 15, 30, 25]
+        'Category': ['A', 'B', 'C', 'D'],
+        'Values': [25, 40, 30, 35]
     })
     
-    # Create a simple bar chart
+    # Create a simple bar chart that's guaranteed to work
     fig = px.bar(df, x='Category', y='Values', title='Test Visualization')
+    fig.update_layout(template='plotly_white')
     
-    # Return the visualization in the same format as the main function
+    # Convert to serializable format and ensure no numpy types
+    fig_dict = _make_json_serializable(fig.to_dict())
+    
     return {
         "RESULT": "This is a test visualization.",
         "final_query": "SELECT * FROM test",
-        "visualizations": [
-            {
-                "type": "bar",
-                "figure": _make_json_serializable(fig.to_dict()),
-                "description": "Test Bar Chart",
-                "reason": "Testing visualization rendering"
-            }
-        ]
+        "visualizations": [{
+            "type": "bar",
+            "figure": fig_dict,
+            "description": "Test Bar Chart",
+            "reason": "Testing visualization rendering"
+        }]
     }
 
 # Example usage (for testing directly from Python)

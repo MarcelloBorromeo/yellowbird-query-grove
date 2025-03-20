@@ -20,6 +20,7 @@ const PlotlyVisualization = ({
 }: PlotlyVisualizationProps) => {
   const [expanded, setExpanded] = useState(false);
   const [processedFigure, setProcessedFigure] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
   
   // Generate a unique ID for this chart
   const chartId = `plotly-${title.toLowerCase().replace(/\s+/g, '-')}-${type}`;
@@ -30,14 +31,34 @@ const PlotlyVisualization = ({
       try {
         // If figure is a string, try to parse it
         const figData = typeof figure === 'string' ? JSON.parse(figure) : figure;
+        console.log('Processing figure data for Plotly:', type);
+        
+        // Ensure data property exists and is an array
+        if (!figData.data || !Array.isArray(figData.data)) {
+          console.error('Invalid figure data format:', figData);
+          setError('Invalid figure data format');
+          return;
+        }
+        
+        // Ensure each data trace has necessary properties
+        figData.data.forEach((trace: any, i: number) => {
+          if (!trace.type) trace.type = type;
+          console.log(`Trace ${i} type:`, trace.type);
+          console.log(`Trace ${i} has x data:`, !!trace.x);
+          console.log(`Trace ${i} has y data:`, !!trace.y);
+        });
+        
         setProcessedFigure(figData);
-        console.log('Processed figure data:', figData);
+        setError(null);
       } catch (error) {
         console.error('Error processing figure data:', error);
+        setError('Error processing figure data');
         setProcessedFigure(null);
       }
+    } else {
+      setError('No figure data provided');
     }
-  }, [figure]);
+  }, [figure, type]);
   
   const toggleExpand = () => {
     setExpanded(!expanded);
@@ -67,16 +88,16 @@ const PlotlyVisualization = ({
     }
   };
 
-  // Debug logging to see what's being received
-  console.log('PlotlyVisualization props:', { title, description, type });
-  console.log('Original figure data:', figure);
-
-  // Check if figure is properly defined
-  if (!processedFigure || !processedFigure.data) {
-    console.error('Invalid figure data provided to PlotlyVisualization');
+  // If there's an error or no processed figure, show an error message
+  if (error || !processedFigure) {
     return (
-      <div className="glass-card rounded-xl p-4 h-[300px] flex items-center justify-center">
-        <p className="text-muted-foreground">No visualization data available</p>
+      <div className="glass-card rounded-xl p-4 h-[300px] flex flex-col items-center justify-center">
+        <p className="text-muted-foreground text-center mb-2">
+          {error || 'No visualization data available'}
+        </p>
+        <p className="text-xs text-muted-foreground text-center">
+          Error details: {error || 'No figure data provided'}
+        </p>
       </div>
     );
   }
@@ -119,27 +140,25 @@ const PlotlyVisualization = ({
       </div>
       
       <div className="h-[calc(100%-64px)]" id={chartId}>
-        {processedFigure && (
-          <Plot
-            data={processedFigure.data}
-            layout={{
-              ...processedFigure.layout,
-              autosize: true,
-              margin: { l: 50, r: 20, t: 30, b: 50 },
-              font: {
-                family: 'Inter, system-ui, sans-serif',
-                size: 12
-              },
-              paper_bgcolor: 'rgba(0,0,0,0)',
-              plot_bgcolor: 'rgba(0,0,0,0)'
-            }}
-            config={{
-              displayModeBar: false,
-              responsive: true
-            }}
-            style={{ width: '100%', height: '100%' }}
-          />
-        )}
+        <Plot
+          data={processedFigure.data}
+          layout={{
+            ...processedFigure.layout,
+            autosize: true,
+            margin: { l: 50, r: 20, t: 30, b: 50 },
+            font: {
+              family: 'Inter, system-ui, sans-serif',
+              size: 12
+            },
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)'
+          }}
+          config={{
+            displayModeBar: false,
+            responsive: true
+          }}
+          style={{ width: '100%', height: '100%' }}
+        />
       </div>
     </div>
   );

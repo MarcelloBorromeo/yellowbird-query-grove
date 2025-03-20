@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 try:
     from query_engine import run_query, create_test_visualization
 except ImportError as e:
-    print(f"Error importing query_engine: {e}")
+    print(f"Error importing query_engine: {str(e)}")
     traceback.print_exc()
     # Create a stub for testing
     def run_query(question):
@@ -79,6 +79,8 @@ def query():
         # Process the result for JSON serialization
         processed_result = process_result_for_json(result)
         
+        print(f"Processed result with visualizations: {len(processed_result.get('visualizations', []))}")
+        
         return jsonify(processed_result)
     
     except Exception as e:
@@ -93,6 +95,7 @@ def test_visualization():
         print("Generating test visualization")
         result = create_test_visualization()
         processed_result = process_result_for_json(result)
+        print(f"Test visualization processed, has {len(processed_result.get('visualizations', []))} visualizations")
         return jsonify(processed_result)
     
     except Exception as e:
