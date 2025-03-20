@@ -89,7 +89,7 @@ export async function processQuery(query: string): Promise<QueryResult> {
       sql: '',
       explanation: `Error processing query: ${errorMessage}. 
       
-1. Make sure you've started the Flask backend with "cd src/server && python app.py"
+1. Make sure you've started the Flask backend with "python app.py" (run this command in the directory containing app.py)
 2. Check that PostgreSQL is running with a database named "YellowBird"
 3. Look for CORS errors in your browser console (press F12)`,
     };

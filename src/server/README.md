@@ -27,14 +27,9 @@ This is the backend server for the YellowBird Data Navigator application.
    createdb -U postgres YellowBird
    ```
 
-6. Run the Flask server using one of these methods:
+6. Run the Flask server:
    ```
-   # Option 1: Run directly with Python
    python app.py
-
-   # Option 2: Use the convenience script
-   chmod +x start_server.sh
-   ./start_server.sh
    ```
 
 The API will be available at `http://localhost:5000/api/query`.
@@ -48,12 +43,11 @@ If you're new to this project, follow these steps:
    ```
    createdb -U postgres YellowBird
    ```
-3. Start the backend:
+3. Start the backend by going to the directory containing app.py and running:
    ```
-   cd src/server
    python app.py
    ```
-4. In a separate terminal, start the frontend:
+4. In a separate terminal, go to the project root directory and start the frontend:
    ```
    npm run dev
    ```
@@ -69,7 +63,7 @@ This usually means:
 3. The backend server might be running on a different port. Check the console output when starting Flask.
 
 Solution:
-- Make sure Flask is running with `python app.py` in the src/server directory
+- Make sure Flask is running with `python app.py` in the directory containing app.py
 - Check for any error messages in the Flask console
 - Verify API_URL in src/lib/queryService.ts is set to 'http://localhost:5000/api/query'
 
