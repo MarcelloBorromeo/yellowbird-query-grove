@@ -27,6 +27,27 @@ const Dashboard = ({
   
   if (!showDashboard) return null;
   
+  // Helper function to determine chart types based on query
+  const determineChartTypes = (query: string) => {
+    const queryLower = query.toLowerCase();
+    
+    if (queryLower.includes('distribution') || queryLower.includes('frequency')) {
+      return ['pie', 'bar'];
+    } else if (queryLower.includes('trend') || queryLower.includes('over time') || 
+               queryLower.includes('monthly') || queryLower.includes('yearly')) {
+      return ['line', 'area'];
+    } else if (queryLower.includes('compare') || queryLower.includes('comparison')) {
+      return ['bar', 'line'];
+    } else if (queryLower.includes('correlation') || queryLower.includes('relationship')) {
+      return ['scatter', 'bar'];
+    } else {
+      // Default chart types
+      return ['bar', 'pie', 'line', 'area'];
+    }
+  };
+  
+  const chartTypes = determineChartTypes(query);
+  
   return (
     <div className="w-full mt-8 mb-20 animate-fade-in-up">
       <div className="container px-4 mx-auto">
@@ -66,40 +87,46 @@ const Dashboard = ({
             {data && data.length > 0 ? (
               <>
                 <ChartCard 
-                  title="Monthly Active Users" 
-                  description="Trend over the last 6 months" 
-                  chartType="line" 
+                  title="Primary Visualization" 
+                  description="Main chart for your query" 
+                  chartType={chartTypes[0] as 'bar' | 'line' | 'pie' | 'area'} 
                   data={data} 
                   dataKey="value" 
                   nameKey="name" 
                 />
                 
-                <ChartCard 
-                  title="Data Distribution" 
-                  description="Breakdown by category" 
-                  chartType="pie" 
-                  data={data} 
-                  dataKey="value" 
-                  nameKey="name" 
-                />
+                {chartTypes.length > 1 && (
+                  <ChartCard 
+                    title="Alternative View" 
+                    description="Different perspective on the data" 
+                    chartType={chartTypes[1] as 'bar' | 'line' | 'pie' | 'area'} 
+                    data={data} 
+                    dataKey="value" 
+                    nameKey="name" 
+                  />
+                )}
                 
-                <ChartCard 
-                  title="Comparison View" 
-                  description="Side-by-side analysis" 
-                  chartType="bar" 
-                  data={data} 
-                  dataKey="value" 
-                  nameKey="name" 
-                />
+                {chartTypes.length > 2 && (
+                  <ChartCard 
+                    title="Detailed Analysis" 
+                    description="In-depth data breakdown" 
+                    chartType={chartTypes[2] as 'bar' | 'line' | 'pie' | 'area'} 
+                    data={data} 
+                    dataKey="value" 
+                    nameKey="name" 
+                  />
+                )}
                 
-                <ChartCard 
-                  title="Cumulative Growth" 
-                  description="Progressive increase over time" 
-                  chartType="area" 
-                  data={data} 
-                  dataKey="value" 
-                  nameKey="name" 
-                />
+                {chartTypes.length > 3 && (
+                  <ChartCard 
+                    title="Trend Overview" 
+                    description="Visual representation of data trends" 
+                    chartType={chartTypes[3] as 'bar' | 'line' | 'pie' | 'area'} 
+                    data={data} 
+                    dataKey="value" 
+                    nameKey="name" 
+                  />
+                )}
               </>
             ) : (
               <div className="col-span-2 flex justify-center items-center h-60">

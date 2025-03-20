@@ -1,0 +1,120 @@
+
+import { toast } from 'sonner';
+import { DataPoint } from './mockData';
+
+// Configuration
+const API_URL = 'http://localhost:5000/api/query'; // Adjust if your backend runs on a different port
+
+export interface QueryResult {
+  data: DataPoint[];
+  sql: string;
+  explanation: string;
+  visualizations?: {
+    type: string;
+    figure: any;
+    description: string;
+    reason: string;
+  }[];
+}
+
+/**
+ * Process a natural language query and get results from the database
+ */
+export async function processQuery(query: string): Promise<QueryResult> {
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ question: query }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Error from server: ${errorText}`);
+    }
+
+    const result = await response.json();
+    
+    // Transform the result into the expected format
+    const transformedData = transformDataFromPython(result);
+    
+    return {
+      data: transformedData,
+      sql: result.final_query || '',
+      explanation: result.RESULT || 'No explanation provided',
+      visualizations: result.visualizations?.map((viz: any) => ({
+        type: viz.type,
+        figure: viz.figure,
+        description: viz.description,
+        reason: viz.reason
+      }))
+    };
+  } catch (error) {
+    console.error('Error processing query:', error);
+    toast.error(`Failed to process query: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    
+    // Return empty result on error
+    return {
+      data: [],
+      sql: '',
+      explanation: `Error processing query: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
+}
+
+/**
+ * Transform data from Python backend into the format expected by our frontend
+ */
+function transformDataFromPython(result: any): DataPoint[] {
+  // If no visualizations, return empty array
+  if (!result.visualizations || result.visualizations.length === 0) {
+    return [];
+  }
+  
+  // Extract data from the first visualization
+  const firstViz = result.visualizations[0];
+  
+  if (firstViz.type === 'pie') {
+    // For pie charts, we extract names and values
+    const figData = firstViz.figure.data[0];
+    return figData.labels.map((label: string, index: number) => ({
+      name: label,
+      value: figData.values[index]
+    }));
+  } else if (firstViz.type === 'bar' || firstViz.type === 'line' || firstViz.type === 'scatter') {
+    // For bar/line/scatter charts, we extract x and y values
+    const figData = firstViz.figure.data[0];
+    return figData.x.map((xValue: string, index: number) => ({
+      name: xValue.toString(),
+      value: figData.y[index]
+    }));
+  } else if (firstViz.type === 'histogram') {
+    // For histograms, we need to process bin data
+    const figData = firstViz.figure.data[0];
+    // Use bin midpoints as names and heights as values
+    const binMidpoints = figData.x.map((val: number, i: number) => 
+      i < figData.x.length - 1 ? (val + figData.x[i+1])/2 : val);
+    
+    return binMidpoints.map((midpoint: number, index: number) => ({
+      name: midpoint.toFixed(2),
+      value: figData.y[index]
+    }));
+  }
+  
+  // Default fallback - try to extract any data we can
+  try {
+    const figData = firstViz.figure.data[0];
+    if (figData.x && figData.y) {
+      return figData.x.map((xValue: string, index: number) => ({
+        name: xValue.toString(),
+        value: figData.y[index]
+      }));
+    }
+  } catch (err) {
+    console.error('Error extracting data from visualization:', err);
+  }
+  
+  return [];
+}

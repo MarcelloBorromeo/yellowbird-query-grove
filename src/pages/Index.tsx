@@ -5,9 +5,10 @@ import QueryProcess from '@/components/QueryProcess';
 import Dashboard from '@/components/Dashboard';
 import ResponseContainer from '@/components/ResponseContainer';
 import SuggestionChips from '@/components/SuggestionChips';
-import { generateMockSQL, generateMockData, DataPoint } from '@/lib/mockData';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
+import { processQuery } from '@/lib/queryService';
+import { DataPoint } from '@/lib/mockData';
 
 const Index = () => {
   const [userQuery, setUserQuery] = useState('');
@@ -24,39 +25,12 @@ const Index = () => {
   // Check if we're viewing a shared dashboard or chart
   useEffect(() => {
     const sharedDashboardId = searchParams.get('dashboard');
-    const sharedChartId = searchParams.get('chart');
     
     if (sharedDashboardId) {
       setIsSharedView(true);
       loadSharedDashboard(sharedDashboardId);
-    } else if (sharedChartId) {
-      setIsSharedView(true);
-      loadSharedChart();
     }
   }, [searchParams]);
-  
-  const loadSharedChart = () => {
-    try {
-      // Get chart data from URL params
-      const chartType = searchParams.get('type') as 'bar' | 'line' | 'pie' | 'area';
-      const chartTitle = searchParams.get('title') || 'Shared Chart';
-      const encodedData = searchParams.get('data');
-      
-      if (encodedData) {
-        // Decode the chart data
-        const decodedData = JSON.parse(decodeURIComponent(encodedData));
-        setDashboardData(decodedData);
-        setUserQuery(`Shared chart: ${chartTitle}`);
-        setResponse(`This is a shared chart visualization for "${chartTitle}". You can explore the data or create your own query to analyze different aspects of the data.`);
-        toast.success('Shared chart loaded successfully');
-      } else {
-        toast.error('Invalid chart data in shared link');
-      }
-    } catch (error) {
-      console.error('Error loading shared chart:', error);
-      toast.error('Failed to load shared chart data');
-    }
-  };
   
   const loadSharedDashboard = async (dashboardId: string) => {
     setIsProcessing(true);
@@ -78,18 +52,18 @@ const Index = () => {
       
       setUserQuery(sampleQuery);
       
-      const { sql, success } = await generateMockSQL(sampleQuery);
-      setSqlQuery(success ? sql : '');
+      // Use the real query service instead of mock data
+      const result = await processQuery(sampleQuery);
       
-      const data = await generateMockData(sampleQuery);
-      setDashboardData(data);
+      setSqlQuery(result.sql);
+      setDashboardData(result.data);
+      setResponse(result.explanation);
       
-      setResponse(`This is a shared dashboard based on the query: "${sampleQuery}". You can explore the data or create your own query to analyze different aspects of the data.`);
-      
-      toast.success('Shared dashboard loaded successfully');
+      toast.success('Dashboard loaded successfully');
     } catch (error) {
-      console.error('Error loading shared dashboard:', error);
-      toast.error('Failed to load shared dashboard');
+      console.error('Error loading dashboard:', error);
+      toast.error('Failed to load dashboard');
+      setHasError(true);
     } finally {
       setIsProcessing(false);
     }
@@ -112,50 +86,21 @@ const Index = () => {
     }
     
     try {
-      const { sql, success } = await generateMockSQL(query);
+      // Use the real query service instead of mock data
+      const result = await processQuery(query);
       
-      if (!success) {
-        setRetryCount(1);
-        toast.info("First SQL attempt failed, retrying with additional context");
-        
-        const retryResult = await generateMockSQL(query);
-        
-        if (!retryResult.success) {
-          setHasError(true);
-          toast.error("Failed to generate valid SQL");
-          setIsProcessing(false);
-          return;
-        }
-        
-        setSqlQuery(retryResult.sql);
+      setSqlQuery(result.sql);
+      
+      if (result.data && result.data.length > 0) {
+        setDashboardData(result.data);
+        setResponse(result.explanation);
+        toast.success(isFollowUp ? "Follow-up query processed" : "Query processed successfully");
       } else {
-        setSqlQuery(sql);
+        // Handle empty results
+        setDashboardData([]);
+        setResponse(result.explanation || "No data returned for this query.");
+        toast.info("Query processed, but no data was returned");
       }
-      
-      const data = await generateMockData(query);
-      setDashboardData(data);
-      
-      setTimeout(() => {
-        let responseText = '';
-        
-        if (isFollowUp) {
-          responseText = `Based on your follow-up question "${query}", I've refined the analysis. `;
-        }
-        
-        if (query.toLowerCase().includes("conversion rate")) {
-          responseText += "The conversion rate varies significantly by country, with Japan (15.3%) and Germany (14.8%) showing the highest rates, while Brazil (6.2%) and Mexico (7.1%) have lower conversion rates. North American and European markets generally outperform other regions.";
-        } else if (query.toLowerCase().includes("active users")) {
-          responseText += "The data shows a steady increase in monthly active users over the past 6 months, with a notable 23% overall growth. There was a significant spike in activity during March, likely due to the new feature release. Weekend usage remains consistently higher than weekday engagement, and mobile users account for 73% of all active sessions.";
-        } else if (query.toLowerCase().includes("revenue")) {
-          responseText += "The revenue analysis reveals that the 'Premium' category generates the highest income (42% of total), followed by 'Essential' (28%) and 'Basic' (18%). Year-over-year growth is strongest in the 'Premium' segment at 34%, while 'Basic' has plateaued with only 3% growth compared to last year.";
-        } else {
-          responseText += "I've analyzed the data based on your query. The visualizations below show the key trends and patterns found in the dataset. You can see the distribution of values across different categories and how they've changed over time.";
-        }
-        
-        setResponse(responseText);
-      }, 1000);
-      
-      toast.success(isFollowUp ? "Follow-up query processed" : "Query processed successfully");
     } catch (error) {
       console.error("Error processing query:", error);
       setHasError(true);
