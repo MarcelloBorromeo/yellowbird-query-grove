@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import { Download, Maximize2, Minimize2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -19,9 +19,25 @@ const PlotlyVisualization = ({
   type
 }: PlotlyVisualizationProps) => {
   const [expanded, setExpanded] = useState(false);
+  const [processedFigure, setProcessedFigure] = useState<any>(null);
   
   // Generate a unique ID for this chart
   const chartId = `plotly-${title.toLowerCase().replace(/\s+/g, '-')}-${type}`;
+  
+  useEffect(() => {
+    // Process the figure data to ensure it's in the right format for Plotly
+    if (figure) {
+      try {
+        // If figure is a string, try to parse it
+        const figData = typeof figure === 'string' ? JSON.parse(figure) : figure;
+        setProcessedFigure(figData);
+        console.log('Processed figure data:', figData);
+      } catch (error) {
+        console.error('Error processing figure data:', error);
+        setProcessedFigure(null);
+      }
+    }
+  }, [figure]);
   
   const toggleExpand = () => {
     setExpanded(!expanded);
@@ -53,10 +69,10 @@ const PlotlyVisualization = ({
 
   // Debug logging to see what's being received
   console.log('PlotlyVisualization props:', { title, description, type });
-  console.log('Figure data:', figure);
+  console.log('Original figure data:', figure);
 
   // Check if figure is properly defined
-  if (!figure || !figure.data) {
+  if (!processedFigure || !processedFigure.data) {
     console.error('Invalid figure data provided to PlotlyVisualization');
     return (
       <div className="glass-card rounded-xl p-4 h-[300px] flex items-center justify-center">
@@ -103,11 +119,11 @@ const PlotlyVisualization = ({
       </div>
       
       <div className="h-[calc(100%-64px)]" id={chartId}>
-        {figure && (
+        {processedFigure && (
           <Plot
-            data={figure.data}
+            data={processedFigure.data}
             layout={{
-              ...figure.layout,
+              ...processedFigure.layout,
               autosize: true,
               margin: { l: 50, r: 20, t: 30, b: 50 },
               font: {

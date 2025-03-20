@@ -646,94 +646,18 @@ def run_query(question: str) -> dict:
         pipeline = QueryPipeline(llm, db, sql_chain)
         result = pipeline.run(question)
         
-        # Force a visualization if none were created but data is available
-        if ('visualizations' not in result or not result['visualizations']) and 'final_query' in result:
-            try:
-                # Execute the query again to get data
-                data = db.run(result['final_query'])
-                df = convert_to_dataframe(data, result['final_query'])
-                
-                if not df.empty and len(df) > 0:
-                    # Create a simple visualization based on the data
-                    logging.info(f"Forcing visualization creation for data with shape {df.shape}")
-                    
-                    if len(df.columns) >= 2:
-                        # Try to identify numeric and categorical columns
-                        numeric_cols = df.select_dtypes(include=['int64', 'float64', 'int32']).columns.tolist()
-                        categorical_cols = df.select_dtypes(include=['object', 'category', 'bool']).columns.tolist()
-                        
-                        # Create appropriate visualization based on data types
-                        if len(numeric_cols) >= 1 and len(categorical_cols) >= 1:
-                            # Bar chart for categorical vs numeric
-                            fig = px.bar(
-                                df, 
-                                x=categorical_cols[0], 
-                                y=numeric_cols[0],
-                                title=f"Distribution of {numeric_cols[0]} by {categorical_cols[0]}"
-                            )
-                            result["visualizations"] = [{
-                                "type": "bar",
-                                "figure": fig.to_dict(),
-                                "description": f"Distribution of {numeric_cols[0]} by {categorical_cols[0]}",
-                                "reason": "Showing relationship between categorical and numeric variables"
-                            }]
-                        elif len(numeric_cols) >= 2:
-                            # Scatter plot for numeric vs numeric
-                            fig = px.scatter(
-                                df, 
-                                x=numeric_cols[0], 
-                                y=numeric_cols[1],
-                                title=f"Relationship between {numeric_cols[0]} and {numeric_cols[1]}"
-                            )
-                            result["visualizations"] = [{
-                                "type": "scatter",
-                                "figure": fig.to_dict(),
-                                "description": f"Relationship between {numeric_cols[0]} and {numeric_cols[1]}",
-                                "reason": "Showing correlation between numeric variables"
-                            }]
-                        elif len(numeric_cols) >= 1:
-                            # Histogram for single numeric column
-                            fig = px.histogram(
-                                df, 
-                                x=numeric_cols[0],
-                                title=f"Distribution of {numeric_cols[0]}"
-                            )
-                            result["visualizations"] = [{
-                                "type": "histogram",
-                                "figure": fig.to_dict(),
-                                "description": f"Distribution of {numeric_cols[0]}",
-                                "reason": "Showing distribution of numeric variable"
-                            }]
-                        elif len(categorical_cols) >= 1:
-                            # Count plot for categorical column
-                            counts = df[categorical_cols[0]].value_counts().reset_index()
-                            counts.columns = ['category', 'count']
-                            fig = px.pie(
-                                counts, 
-                                names='category', 
-                                values='count',
-                                title=f"Distribution of {categorical_cols[0]}"
-                            )
-                            result["visualizations"] = [{
-                                "type": "pie",
-                                "figure": fig.to_dict(),
-                                "description": f"Distribution of {categorical_cols[0]}",
-                                "reason": "Showing distribution of categorical variable"
-                            }]
-                    
-                    logging.info(f"Force-created visualization: {result.get('visualizations', 'None')}")
-            except Exception as viz_error:
-                logging.error(f"Error creating forced visualization: {str(viz_error)}")
-                # Continue without visualization if there's an error
-        
-        # For debugging purposes, log the visualizations
+        # Important: Ensure visualizations are properly JSON serializable
         if 'visualizations' in result and result['visualizations']:
-            logging.info(f"Returning {len(result['visualizations'])} visualizations")
-            for i, viz in enumerate(result['visualizations']):
-                logging.info(f"Visualization {i+1}: {viz['type']}, has figure: {bool(viz['figure'])}")
-        else:
-            logging.info("No visualizations to return")
-            
+            for viz in result['visualizations']:
+                if 'figure' in viz:
+                    if hasattr(viz['figure'], 'to_dict'):
+                        viz['figure'] = viz['figure'].to_dict()
+                    
+                    # Convert numpy types to Python types for JSON serialization
+                    viz['figure'] = _make_json_serializable(viz['figure'])
+                    
+                    logger.info(f"Processed visualization of type {viz['type']} for JSON")
+        
         return result
     except Exception as e:
         logger.error(f"Query processing failed: {str(e)}")
@@ -743,4 +667,74 @@ def run_query(question: str) -> dict:
             "final_query": sql_query
         }
 
-# Function to display the results
+def _make_json_serializable(obj):
+    """Convert all numpy types in a nested structure to Python types for JSON serialization"""
+    if isinstance(obj, (np.int_, np.intc, np.intp, np.int8, np.int16, np.int32, np.int64, 
+                         np.uint8, np.uint16, np.uint32, np.uint64)):
+        return int(obj)
+    elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
+        return float(obj)
+    elif isinstance(obj, (np.complex_, np.complex64, np.complex128)):
+        return {'real': float(obj.real), 'imag': float(obj.imag)}
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    elif isinstance(obj, (dict, pd._libs.properties.AxisProperty)):
+        return {k: _make_json_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, list) or isinstance(obj, tuple):
+        return [_make_json_serializable(i) for i in obj]
+    else:
+        return obj
+
+# Function to display the results with visualizations inline
+def display_results(result: Dict[str, Any]) -> None:
+    print("\nFinal SQL Query:")
+    print(result["final_query"])
+    
+    print("\nResult:")
+    print(result["RESULT"])
+    
+    if "visualizations" in result:
+        print("\nVisualizations:")
+        for i, viz in enumerate(result["visualizations"]):
+            print(f"{i+1}. {viz['description']}")
+            print(f"   Reason: {viz.get('reason', 'No reason provided')}")
+            viz['figure'].show()  # Display the Plotly figure inline
+
+# Force create a visualization for test purposes
+def create_test_visualization():
+    """Create a test visualization to ensure the frontend can display it"""
+    # Sample data
+    df = pd.DataFrame({
+        'Category': ['A', 'B', 'C', 'D', 'E'],
+        'Values': [10, 20, 15, 30, 25]
+    })
+    
+    # Create a simple bar chart
+    fig = px.bar(df, x='Category', y='Values', title='Test Visualization')
+    
+    # Return the visualization in the same format as the main function
+    return {
+        "RESULT": "This is a test visualization.",
+        "final_query": "SELECT * FROM test",
+        "visualizations": [
+            {
+                "type": "bar",
+                "figure": _make_json_serializable(fig.to_dict()),
+                "description": "Test Bar Chart",
+                "reason": "Testing visualization rendering"
+            }
+        ]
+    }
+
+# Example usage (for testing directly from Python)
+if __name__ == "__main__":
+    question = "Make me a frequency distribution. give me just a single visual"
+    result = run_query(question)
+    print(json.dumps(result, indent=2))
+    
+    # Optionally, display the results with matplotlib or other viewer
+    if "visualizations" in result:
+        for viz in result["visualizations"]:
+            print(f"Visualization: {viz['description']}")

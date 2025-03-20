@@ -34,7 +34,7 @@ export async function processQuery(query: string): Promise<QueryResult> {
     
     // Check if the backend is accessible with a timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
 
     const response = await fetch(API_URL, {
       method: 'POST',
@@ -61,6 +61,14 @@ export async function processQuery(query: string): Promise<QueryResult> {
       console.log('Visualizations found in response:', result.visualizations.length);
       result.visualizations.forEach((viz: any, index: number) => {
         console.log(`Visualization ${index + 1} - Type: ${viz.type}, Has figure:`, !!viz.figure);
+        
+        // Add additional debugging for figure data
+        if (viz.figure) {
+          console.log(`Visualization ${index + 1} figure data:`, 
+            viz.figure.data ? `Has ${viz.figure.data.length} data traces` : 'No data property');
+          console.log(`Visualization ${index + 1} figure layout:`, 
+            viz.figure.layout ? 'Has layout' : 'No layout property');
+        }
       });
     } else {
       console.log('No visualizations found in response');

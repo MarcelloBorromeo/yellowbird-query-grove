@@ -4,15 +4,17 @@ from flask_cors import CORS
 import json
 import sys
 import os
+import traceback
 
 # Add the directory containing the Python module to the path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import the Python code
 try:
-    from query_engine import run_query
+    from query_engine import run_query, create_test_visualization
 except ImportError as e:
     print(f"Error importing query_engine: {e}")
+    traceback.print_exc()
     # Create a stub for testing
     def run_query(question):
         return {
@@ -29,6 +31,24 @@ except ImportError as e:
                 },
                 "description": "Stub visualization",
                 "reason": "Testing only"
+            }]
+        }
+    
+    def create_test_visualization():
+        return {
+            "RESULT": "This is a test visualization.",
+            "final_query": "SELECT * FROM test",
+            "visualizations": [{
+                "type": "bar",
+                "figure": {
+                    "data": [{
+                        "type": "bar",
+                        "x": ["Test A", "Test B", "Test C", "Test D"],
+                        "y": [25, 40, 30, 35]
+                    }]
+                },
+                "description": "Test Bar Chart",
+                "reason": "Testing visualization rendering"
             }]
         }
 
@@ -62,6 +82,21 @@ def query():
     
     except Exception as e:
         print(f"Error processing query: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/test-visualization', methods=['GET'])
+def test_visualization():
+    """Endpoint to get a test visualization for frontend testing"""
+    try:
+        print("Generating test visualization")
+        result = create_test_visualization()
+        processed_result = process_result_for_json(result)
+        return jsonify(processed_result)
+    
+    except Exception as e:
+        print(f"Error generating test visualization: {str(e)}")
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 def process_result_for_json(result):
@@ -94,6 +129,6 @@ def process_result_for_json(result):
     return processed
 
 if __name__ == '__main__':
-    PORT = 5001  # Changed port from 5000 to 5001
+    PORT = 5001
     print(f"Starting Flask server on http://localhost:{PORT}")
     app.run(debug=True, port=PORT, host='0.0.0.0')  # Use 0.0.0.0 to allow external connections
