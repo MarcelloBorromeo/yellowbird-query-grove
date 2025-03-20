@@ -32,7 +32,7 @@ This is the backend server for the YellowBird Data Navigator application.
    python app.py
    ```
 
-The API will be available at `http://localhost:5000/api/query`.
+The API will be available at `http://localhost:5001/api/query`.
 
 ## Quick Start for Beginners
 
@@ -55,26 +55,32 @@ If you're new to this project, follow these steps:
 
 ## Advanced Troubleshooting
 
+### Port 5000 is in use
+
+If you see "Address already in use" for port 5000, especially on macOS:
+1. We've updated the server to use port 5001 instead
+2. On macOS, port 5000 is often used by AirPlay Receiver - you can disable it in System Preferences -> General -> AirDrop & Handoff
+
 ### "Failed to fetch" or "Could not connect to the backend server" error
 
 If you're getting this error, here's an advanced troubleshooting guide:
 
 1. **Verify the Flask server is running**:
    ```
-   curl http://localhost:5000/
+   curl http://localhost:5001/
    ```
    You should get a response with `{"message":"Flask server is running","status":"ok"}`. If not, the server isn't running correctly.
 
-2. **Check if port 5000 is in use by another application**:
+2. **Check if port 5001 is in use by another application**:
    ```
-   lsof -i :5000  # On Mac/Linux
-   netstat -ano | findstr :5000  # On Windows
+   lsof -i :5001  # On Mac/Linux
+   netstat -ano | findstr :5001  # On Windows
    ```
-   If something else is using port 5000, either stop that process or change the port in app.py.
+   If something else is using port 5001, either stop that process or change the port in app.py.
 
 3. **Test the API endpoint directly**:
    ```
-   curl -X POST -H "Content-Type: application/json" -d '{"question":"test"}' http://localhost:5000/api/query
+   curl -X POST -H "Content-Type: application/json" -d '{"question":"test"}' http://localhost:5001/api/query
    ```
    This should return JSON data if working correctly.
 
@@ -88,7 +94,7 @@ If you're getting this error, here's an advanced troubleshooting guide:
    - If you see CORS errors, check that the Flask app has CORS correctly configured
 
 6. **Check for firewall issues**:
-   - Ensure your firewall isn't blocking connections to localhost:5000
+   - Ensure your firewall isn't blocking connections to localhost:5001
    - Try temporarily disabling the firewall to test
 
 ### Checking PostgreSQL Connection
@@ -134,5 +140,5 @@ If you suspect database connection issues:
    - Make the file executable: `chmod +x app.py`
 
 5. **Address already in use**
-   - Something else is using port 5000
+   - Something else is using port 5001
    - Change the port in app.py or kill the other process

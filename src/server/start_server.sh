@@ -54,24 +54,26 @@ fi
 echo "Installing required Python packages..."
 $PIP_CMD install -r requirements.txt
 
-echo "Testing network connectivity on port 5000..."
-# Check if port 5000 is already in use
+PORT=5001  # Updated port from 5000 to 5001
+
+echo "Testing network connectivity on port $PORT..."
+# Check if port $PORT is already in use
 if command -v netstat &> /dev/null; then
-    if netstat -tuln | grep -q ":5000 "; then
-        echo "Warning: Port 5000 is already in use. The Flask app may fail to start."
+    if netstat -tuln | grep -q ":$PORT "; then
+        echo "Warning: Port $PORT is already in use. The Flask app may fail to start."
         echo "Try stopping any existing Flask applications or change the port in app.py."
     else
-        echo "Port 5000 is available."
+        echo "Port $PORT is available."
     fi
 elif command -v lsof &> /dev/null; then
-    if lsof -i :5000 &> /dev/null; then
-        echo "Warning: Port 5000 is already in use. The Flask app may fail to start."
+    if lsof -i :$PORT &> /dev/null; then
+        echo "Warning: Port $PORT is already in use. The Flask app may fail to start."
         echo "Try stopping any existing Flask applications or change the port in app.py."
     else
-        echo "Port 5000 is available."
+        echo "Port $PORT is available."
     fi
 else
-    echo "Cannot check port availability. Make sure port 5000 is not used by another application."
+    echo "Cannot check port availability. Make sure port $PORT is not used by another application."
 fi
 
 # Check for common CORS issues
@@ -94,7 +96,7 @@ sleep 5
 # Test the API endpoint
 if [ "$HAS_CURL" = true ]; then
     echo "Testing API endpoint connectivity..."
-    RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -d '{"question":"test"}' http://localhost:5000/api/query)
+    RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -d '{"question":"test"}' http://localhost:$PORT/api/query)
     
     if [ "$RESPONSE" = "200" ]; then
         echo "✅ API endpoint is accessible. Your backend is working correctly!"
@@ -108,14 +110,14 @@ else
 fi
 
 echo "-----------------------------------"
-echo "Backend server should now be running at http://localhost:5000"
+echo "Backend server should now be running at http://localhost:$PORT"
 echo "To test the API manually, use:"
-echo "curl -X POST -H \"Content-Type: application/json\" -d '{\"question\":\"test\"}' http://localhost:5000/api/query"
+echo "curl -X POST -H \"Content-Type: application/json\" -d '{\"question\":\"test\"}' http://localhost:$PORT/api/query"
 echo ""
 echo "If you see 'Failed to fetch' errors in your frontend:"
 echo "1. Make sure the Flask server is running (check for errors above)"
 echo "2. Check your browser console for CORS errors"
-echo "3. Ensure your frontend is using http://localhost:5000/api/query as the API URL"
+echo "3. Ensure your frontend is using http://localhost:$PORT/api/query as the API URL"
 echo "-----------------------------------"
 
 # Keep the script running until Ctrl+C

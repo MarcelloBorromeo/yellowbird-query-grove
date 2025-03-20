@@ -94,5 +94,6 @@ def process_result_for_json(result):
     return processed
 
 if __name__ == '__main__':
-    print("Starting Flask server on http://localhost:5000")
-    app.run(debug=True, port=5000, host='0.0.0.0')  # Use 0.0.0.0 to allow external connections
+    PORT = 5001  # Changed port from 5000 to 5001
+    print(f"Starting Flask server on http://localhost:{PORT}")
+    app.run(debug=True, port=PORT, host='0.0.0.0')  # Use 0.0.0.0 to allow external connections
