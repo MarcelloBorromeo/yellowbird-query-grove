@@ -39,37 +39,55 @@ This is the backend server for the YellowBird Data Navigator application.
 
 The API will be available at `http://localhost:5000/api/query`.
 
-## Troubleshooting
+## Quick Start for Beginners
 
-1. **Connection issues**: Make sure your PostgreSQL server is running and accessible with the user credentials specified.
+If you're new to this project, follow these steps:
 
-2. **Port conflicts**: If port 5000 is already in use, you can modify the port in `app.py`.
-
-3. **CORS issues**: By default, the server accepts requests from any origin. If you're experiencing CORS issues, check your frontend's URL.
-
-4. **Dependencies**: If you encounter dependency conflicts, try creating a virtual environment:
+1. Make sure PostgreSQL is installed and running.
+2. Create the YellowBird database:
    ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
+   createdb -U postgres YellowBird
    ```
+3. Start the backend:
+   ```
+   cd src/server
+   python app.py
+   ```
+4. In a separate terminal, start the frontend:
+   ```
+   npm run dev
+   ```
+5. Visit http://localhost:8080 in your browser.
 
-## API Usage
+## Troubleshooting Common Issues
 
-Send a POST request to `/api/query` with a JSON body containing a `question` field:
+### "Failed to fetch" error in browser
 
-```json
-{
-  "question": "Show me the top 10 products by revenue"
-}
-```
+This usually means:
+1. The Flask backend isn't running. Check if it's running at http://localhost:5000.
+2. There might be CORS issues. Check your browser console (F12) for CORS errors.
+3. The backend server might be running on a different port. Check the console output when starting Flask.
 
-The API will return a JSON response with:
-- `RESULT`: A natural language explanation of the results
-- `final_query`: The SQL query that was executed
-- `visualizations`: An array of visualization objects (if applicable)
+Solution:
+- Make sure Flask is running with `python app.py` in the src/server directory
+- Check for any error messages in the Flask console
+- Verify API_URL in src/lib/queryService.ts is set to 'http://localhost:5000/api/query'
 
-## Database Requirements
+### PostgreSQL connection issues
+
+If Flask can't connect to PostgreSQL:
+1. Verify PostgreSQL is running: `pg_isready` or `pg_ctl status`
+2. Check if the YellowBird database exists: `psql -U postgres -c "\l" | grep YellowBird`
+3. Test the connection: `psql -U postgres -d YellowBird -c "SELECT 1;"`
+
+### Port conflicts
+
+If port 5000 is already in use:
+1. Find and stop the process using port 5000: `lsof -i :5000` or `netstat -tuln | grep 5000`
+2. OR change the port in app.py (typically at the bottom): `app.run(debug=True, port=5001)`
+   Then update API_URL in queryService.ts to match
+
+### Database Requirements
 
 This application requires a PostgreSQL database with the following setup:
 1. Database name: YellowBird

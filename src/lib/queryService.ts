@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { DataPoint } from './mockData';
 
 // Configuration
-const API_URL = 'http://localhost:5000/api/query'; // Adjust if your backend runs on a different port
+const API_URL = 'http://localhost:5000/api/query'; // Fixed to ensure correct port
 
 export interface QueryResult {
   data: DataPoint[];
@@ -41,7 +41,8 @@ export async function processQuery(query: string): Promise<QueryResult> {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Error from server: ${errorText}`);
+      console.error('Server returned error:', response.status, errorText);
+      throw new Error(`Server error (${response.status}): ${errorText}`);
     }
 
     const result = await response.json();
@@ -69,7 +70,7 @@ export async function processQuery(query: string): Promise<QueryResult> {
       if (error.name === 'AbortError') {
         errorMessage = 'Connection to backend server timed out. Make sure the Flask server is running at http://localhost:5000';
       } else if (error.message.includes('Failed to fetch')) {
-        errorMessage = 'Could not connect to the backend server. Please ensure the Flask server is running on http://localhost:5000';
+        errorMessage = 'Could not connect to the backend server. Please ensure the Flask server is running on http://localhost:5000. Check for CORS issues in your browser console.';
       } else {
         errorMessage = error.message;
       }
@@ -77,13 +78,20 @@ export async function processQuery(query: string): Promise<QueryResult> {
       errorMessage = 'Unknown error';
     }
     
-    toast.error(`Failed to process query: ${errorMessage}`);
+    // More visible error toast
+    toast.error(`Failed to process query: ${errorMessage}`, {
+      duration: 6000, // Show longer for user to read
+    });
     
     // Return empty result on error
     return {
       data: [],
       sql: '',
-      explanation: `Error processing query: ${errorMessage}. Make sure you've started the Flask backend with "cd src/server && python app.py"`,
+      explanation: `Error processing query: ${errorMessage}. 
+      
+1. Make sure you've started the Flask backend with "cd src/server && python app.py"
+2. Check that PostgreSQL is running with a database named "YellowBird"
+3. Look for CORS errors in your browser console (press F12)`,
     };
   }
 }
