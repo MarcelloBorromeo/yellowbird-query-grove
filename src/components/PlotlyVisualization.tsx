@@ -51,6 +51,20 @@ const PlotlyVisualization = ({
     }
   };
 
+  // Debug logging to see what's being received
+  console.log('PlotlyVisualization props:', { title, description, type });
+  console.log('Figure data:', figure);
+
+  // Check if figure is properly defined
+  if (!figure || !figure.data) {
+    console.error('Invalid figure data provided to PlotlyVisualization');
+    return (
+      <div className="glass-card rounded-xl p-4 h-[300px] flex items-center justify-center">
+        <p className="text-muted-foreground">No visualization data available</p>
+      </div>
+    );
+  }
+
   return (
     <div 
       className={cn(

@@ -56,6 +56,16 @@ export async function processQuery(query: string): Promise<QueryResult> {
     const result = await response.json();
     console.log('Received response from backend:', result);
     
+    // Check if visualizations are present and log them
+    if (result.visualizations && result.visualizations.length > 0) {
+      console.log('Visualizations found in response:', result.visualizations.length);
+      result.visualizations.forEach((viz: any, index: number) => {
+        console.log(`Visualization ${index + 1} - Type: ${viz.type}, Has figure:`, !!viz.figure);
+      });
+    } else {
+      console.log('No visualizations found in response');
+    }
+    
     // Transform the result into the expected format
     const transformedData = transformDataFromPython(result);
     

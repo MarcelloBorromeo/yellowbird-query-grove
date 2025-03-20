@@ -29,6 +29,14 @@ const Dashboard = ({
     }
   }, [data, isLoading, visualizations]);
   
+  useEffect(() => {
+    // For debugging
+    if (visualizations && visualizations.length > 0) {
+      console.log('Dashboard received visualizations:', visualizations.length);
+      console.log('First visualization type:', visualizations[0].type);
+    }
+  }, [visualizations]);
+  
   if (!showDashboard) return null;
   
   // Helper function to determine chart types based on query
@@ -117,28 +125,6 @@ const Dashboard = ({
                     title="Alternative View" 
                     description="Different perspective on the data" 
                     chartType={chartTypes[1] as 'bar' | 'line' | 'pie' | 'area'} 
-                    data={data} 
-                    dataKey="value" 
-                    nameKey="name" 
-                  />
-                )}
-                
-                {chartTypes.length > 2 && (
-                  <ChartCard 
-                    title="Detailed Analysis" 
-                    description="In-depth data breakdown" 
-                    chartType={chartTypes[2] as 'bar' | 'line' | 'pie' | 'area'} 
-                    data={data} 
-                    dataKey="value" 
-                    nameKey="name" 
-                  />
-                )}
-                
-                {chartTypes.length > 3 && (
-                  <ChartCard 
-                    title="Trend Overview" 
-                    description="Visual representation of data trends" 
-                    chartType={chartTypes[3] as 'bar' | 'line' | 'pie' | 'area'} 
                     data={data} 
                     dataKey="value" 
                     nameKey="name" 
