@@ -43,7 +43,7 @@ If you're new to this project, follow these steps:
    ```
    createdb -U postgres YellowBird
    ```
-3. Start the backend by going to the directory containing app.py and running:
+3. Start the backend by running:
    ```
    python app.py
    ```
@@ -53,39 +53,86 @@ If you're new to this project, follow these steps:
    ```
 5. Visit http://localhost:8080 in your browser.
 
-## Troubleshooting Common Issues
+## Advanced Troubleshooting
 
-### "Failed to fetch" error in browser
+### "Failed to fetch" or "Could not connect to the backend server" error
 
-This usually means:
-1. The Flask backend isn't running. Check if it's running at http://localhost:5000.
-2. There might be CORS issues. Check your browser console (F12) for CORS errors.
-3. The backend server might be running on a different port. Check the console output when starting Flask.
+If you're getting this error, here's an advanced troubleshooting guide:
 
-Solution:
-- Make sure Flask is running with `python app.py` in the directory containing app.py
-- Check for any error messages in the Flask console
-- Verify API_URL in src/lib/queryService.ts is set to 'http://localhost:5000/api/query'
+1. **Verify the Flask server is running**:
+   ```
+   curl http://localhost:5000/
+   ```
+   You should get a response with `{"message":"Flask server is running","status":"ok"}`. If not, the server isn't running correctly.
 
-### PostgreSQL connection issues
+2. **Check if port 5000 is in use by another application**:
+   ```
+   lsof -i :5000  # On Mac/Linux
+   netstat -ano | findstr :5000  # On Windows
+   ```
+   If something else is using port 5000, either stop that process or change the port in app.py.
 
-If Flask can't connect to PostgreSQL:
-1. Verify PostgreSQL is running: `pg_isready` or `pg_ctl status`
-2. Check if the YellowBird database exists: `psql -U postgres -c "\l" | grep YellowBird`
-3. Test the connection: `psql -U postgres -d YellowBird -c "SELECT 1;"`
+3. **Test the API endpoint directly**:
+   ```
+   curl -X POST -H "Content-Type: application/json" -d '{"question":"test"}' http://localhost:5000/api/query
+   ```
+   This should return JSON data if working correctly.
 
-### Port conflicts
+4. **Check for network restrictions**:
+   - Some corporate networks or VPNs block localhost connections
+   - If using Docker or a VM, ensure port forwarding is properly set up
 
-If port 5000 is already in use:
-1. Find and stop the process using port 5000: `lsof -i :5000` or `netstat -tuln | grep 5000`
-2. OR change the port in app.py (typically at the bottom): `app.run(debug=True, port=5001)`
-   Then update API_URL in queryService.ts to match
+5. **Debug CORS issues**:
+   - Open your browser's developer tools (F12)
+   - Look in the Console tab for CORS errors
+   - If you see CORS errors, check that the Flask app has CORS correctly configured
 
-### Database Requirements
+6. **Check for firewall issues**:
+   - Ensure your firewall isn't blocking connections to localhost:5000
+   - Try temporarily disabling the firewall to test
 
-This application requires a PostgreSQL database with the following setup:
-1. Database name: YellowBird
-2. Username: postgres
-3. Password: postgres
+### Checking PostgreSQL Connection
 
-If your PostgreSQL setup is different, modify the connection string in `query_engine.py`.
+If you suspect database connection issues:
+
+1. Test PostgreSQL connection:
+   ```
+   psql -U postgres -d YellowBird -c "SELECT 1;"
+   ```
+   If this works, PostgreSQL is running and the database exists.
+
+2. Verify the connection string in `query_engine.py` matches your PostgreSQL setup:
+   ```
+   # Default connection string
+   postgresql://postgres:postgres@localhost:5432/YellowBird
+   ```
+   
+   The format is: `postgresql://username:password@host:port/database_name`
+
+### Common Errors and Solutions
+
+1. **ModuleNotFoundError: No module named 'X'**
+   - Run `pip install -r requirements.txt` again
+   - Make sure you're using the correct Python environment
+
+2. **OperationalError: could not connect to server**
+   - PostgreSQL is not running. Start it with:
+     ```
+     # On Mac:
+     brew services start postgresql
+     # On Ubuntu:
+     sudo service postgresql start
+     # On Windows:
+     Start PostgreSQL from services.msc
+     ```
+
+3. **psycopg2.errors.UndefinedTable**
+   - The YellowBird database exists but has no tables
+   - You may need to initialize the database schema
+
+4. **Permission denied: 'app.py'**
+   - Make the file executable: `chmod +x app.py`
+
+5. **Address already in use**
+   - Something else is using port 5000
+   - Change the port in app.py or kill the other process

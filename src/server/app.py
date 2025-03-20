@@ -33,16 +33,24 @@ except ImportError as e:
         }
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app, resources={r"/*": {"origins": "*"}})  # Updated CORS to be more permissive for testing
+
+@app.route('/', methods=['GET'])
+def healthcheck():
+    """Simple endpoint to verify the server is running"""
+    return jsonify({"status": "ok", "message": "Flask server is running"})
 
 @app.route('/api/query', methods=['POST'])
 def query():
     try:
+        print("Received request to /api/query")
         data = request.json
         question = data.get('question', '')
         
         if not question:
             return jsonify({"error": "No question provided"}), 400
+        
+        print(f"Processing question: {question}")
         
         # Call the Python code
         result = run_query(question)
@@ -86,4 +94,5 @@ def process_result_for_json(result):
     return processed
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    print("Starting Flask server on http://localhost:5000")
+    app.run(debug=True, port=5000, host='0.0.0.0')  # Use 0.0.0.0 to allow external connections

@@ -24,6 +24,14 @@ export async function processQuery(query: string): Promise<QueryResult> {
   try {
     console.log('Attempting to connect to backend at:', API_URL);
     
+    // First, perform a connection test
+    try {
+      const testResponse = await fetch('http://localhost:5000/');
+      console.log('Basic connection test response:', testResponse.status);
+    } catch (testError) {
+      console.error('Connection test failed:', testError);
+    }
+    
     // Check if the backend is accessible with a timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second timeout
@@ -89,9 +97,14 @@ export async function processQuery(query: string): Promise<QueryResult> {
       sql: '',
       explanation: `Error processing query: ${errorMessage}. 
       
+Troubleshooting steps:
 1. Make sure you've started the Flask backend with "python app.py" (run this command in the directory containing app.py)
 2. Check that PostgreSQL is running with a database named "YellowBird"
-3. Look for CORS errors in your browser console (press F12)`,
+3. Check your browser console (F12) for:
+   - CORS errors: they appear as "Access-Control-Allow-Origin" errors
+   - Network errors: look for failed requests to localhost:5000
+4. Make sure no other application is using port 5000
+5. If everything else fails, try restarting both your frontend and backend servers`,
     };
   }
 }
