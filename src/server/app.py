@@ -68,8 +68,12 @@ def process_result_for_json(result):
         for viz in result["visualizations"]:
             # Extract figure data in a JSON-serializable format
             if "figure" in viz:
-                # Convert Plotly figure to dict
-                fig_dict = viz["figure"].to_dict()
+                # Convert Plotly figure to dict if it's not already
+                if hasattr(viz["figure"], 'to_dict'):
+                    fig_dict = viz["figure"].to_dict()
+                else:
+                    fig_dict = viz["figure"]
+                
                 processed_viz.append({
                     "type": viz.get("type", ""),
                     "figure": fig_dict,
