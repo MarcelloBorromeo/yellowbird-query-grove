@@ -10,13 +10,19 @@ interface ResponseContainerProps {
 const ResponseContainer = ({ response, isLoading }: ResponseContainerProps) => {
   if (!response && !isLoading) return null;
   
-  // Format the response text with proper paragraphs
+  // Format the response text with proper paragraphs and make it more concise
   const formatResponse = (text: string) => {
-    return text.split('\n\n').map((paragraph, index) => (
-      <p key={index} className={index > 0 ? 'mt-3' : ''}>
-        {paragraph}
-      </p>
-    ));
+    // Split by paragraphs and trim each one
+    return text.split('\n\n').map((paragraph, index) => {
+      // Skip empty paragraphs
+      if (!paragraph.trim()) return null;
+      
+      return (
+        <p key={index} className={index > 0 ? 'mt-3' : ''}>
+          {paragraph.trim()}
+        </p>
+      );
+    }).filter(Boolean); // Remove null entries
   };
   
   return (
@@ -29,7 +35,7 @@ const ResponseContainer = ({ response, isLoading }: ResponseContainerProps) => {
             </div>
             <div>
               <h2 className="text-lg font-semibold">Response</h2>
-              <p className="text-sm text-muted-foreground">Natural language explanation</p>
+              <p className="text-sm text-muted-foreground">Key insights and analysis</p>
             </div>
           </div>
           
@@ -41,10 +47,10 @@ const ResponseContainer = ({ response, isLoading }: ResponseContainerProps) => {
                 <div className="w-2 h-2 rounded-full bg-accent/40 animate-pulse animate-delay-200"></div>
               </div>
             ) : (
-              <ScrollArea className="pr-4 max-h-[600px] overflow-y-auto">
+              <ScrollArea className="pr-4 max-h-[500px] overflow-y-auto">
                 <div className="text-muted-foreground pb-2">
                   {response ? formatResponse(response) : (
-                    <p>Based on your query, I've analyzed the data and found some interesting patterns. The visualization shows the key results from your query.</p>
+                    <p>Based on your query, I've analyzed the data and found the key patterns shown in the visualization below.</p>
                   )}
                 </div>
               </ScrollArea>

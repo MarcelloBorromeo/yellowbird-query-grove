@@ -1,7 +1,8 @@
+
 import { useState, useEffect } from 'react';
 import ChartCard from './ChartCard';
 import PlotlyVisualization from './PlotlyVisualization';
-import { Download, Calendar, TestTube2 } from 'lucide-react';
+import { Download, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { QueryResult } from '@/lib/queryService';
 
@@ -52,27 +53,6 @@ const Dashboard = ({
     }
   }, [visualizations]);
 
-  // Test endpoint for when visualizations aren't showing up
-  const testVisualizations = async () => {
-    try {
-      console.log('Testing visualization endpoint');
-      const response = await fetch('http://localhost:5001/api/test-visualization');
-      const result = await response.json();
-      console.log('Test visualization result:', result);
-      
-      if (result.visualizations && result.visualizations.length > 0) {
-        console.log('Test visualization succeeded');
-        toast.success('Test visualization loaded successfully');
-      } else {
-        console.log('Test visualization returned no visualizations');
-        toast.error('Test visualization failed');
-      }
-    } catch (error) {
-      console.error('Test visualization failed:', error);
-      toast.error(`Test visualization failed: ${error}`);
-    }
-  };
-  
   if (!showDashboard) return null;
 
   // Helper function to determine chart types based on query
@@ -113,16 +93,7 @@ const Dashboard = ({
               </div>
             </div>
             
-            <div className="flex items-center space-x-2">
-              <button 
-                className="flex items-center space-x-2 bg-indigo-100 text-indigo-600 px-3 py-2 rounded-md hover:bg-indigo-200 transition-colors text-sm"
-                onClick={testVisualizations}
-                title="Run a test visualization to debug issues"
-              >
-                <TestTube2 className="h-4 w-4" />
-                <span>Test Viz</span>
-              </button>
-              
+            <div className="flex items-center">
               <button 
                 className="flex items-center space-x-2 bg-secondary px-3 py-2 rounded-md hover:bg-secondary/80 transition-colors text-sm" 
                 onClick={() => {

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+
+import { useState } from 'react';
 import Plot from 'react-plotly.js';
 import { PlotData, Layout } from 'plotly.js';
 import { Download, Maximize2, Minimize2 } from 'lucide-react';
@@ -214,8 +215,9 @@ const ChartCard = ({
           data={getPlotData()}
           layout={{
             ...getLayout(),
-            height: expanded ? '100%' : undefined,
-            width: expanded ? '100%' : undefined
+            // Fix the type error: use numbers instead of strings for height and width
+            height: expanded ? undefined : undefined,
+            width: expanded ? undefined : undefined
           }}
           config={plotConfig}
           style={{ width: '100%', height: '100%' }}

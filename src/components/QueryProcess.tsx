@@ -44,6 +44,17 @@ const QueryProcess = ({
   
   if (!showProcess) return null;
   
+  // Calculate the SQL height based on the query length
+  const getSqlHeight = () => {
+    if (!sqlQuery) return '60px';
+    
+    // Count the number of lines in the SQL query
+    const lineCount = (sqlQuery.match(/\n/g) || []).length + 1;
+    
+    // Set a reasonable height based on the number of lines (with a min and max)
+    return `${Math.max(Math.min(lineCount * 24, 400), 60)}px`;
+  };
+  
   return (
     <div className="mt-6 w-full max-w-3xl mx-auto overflow-hidden animate-fade-in">
       <div className="space-y-4">
@@ -71,12 +82,12 @@ const QueryProcess = ({
             </div>
           </div>
           
-          {/* SQL Output with ScrollArea */}
+          {/* SQL Output with Dynamic Height */}
           {sqlQuery ? (
             <div className="mt-2 pl-8">
               <div className="relative">
                 <div className="relative">
-                  <ScrollArea className="h-60 rounded-md">
+                  <ScrollArea className="rounded-md" style={{ height: getSqlHeight() }}>
                     <pre className="text-xs font-mono bg-secondary/30 p-3 rounded-md overflow-x-auto">
                       <code>{sqlQuery}</code>
                     </pre>
