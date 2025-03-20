@@ -5,27 +5,54 @@ This is the backend server for the YellowBird Data Navigator application.
 
 ## Setup
 
-1. Install the required Python packages:
+1. Make sure you have Python 3.9+ and pip installed.
+
+2. Install the required Python packages:
    ```
    pip install -r requirements.txt
    ```
 
-2. Set your OpenAI API key (the key is already included in the code, but you may want to replace it with your own):
+3. Set your OpenAI API key (the key is already included in the code, but you may want to replace it with your own):
    ```
    export OPENAI_API_KEY="your-api-key"
    ```
 
-3. Make sure your PostgreSQL database is running and update the connection string in `query_engine.py` if needed. The default connection string is:
+4. Make sure your PostgreSQL database is running and update the connection string in `query_engine.py` if needed. The default connection string is:
    ```
    postgresql://postgres:postgres@localhost:5432/YellowBird
    ```
 
-4. Run the Flask server:
+5. Create a PostgreSQL database named "YellowBird" if it doesn't exist:
    ```
+   createdb -U postgres YellowBird
+   ```
+
+6. Run the Flask server using one of these methods:
+   ```
+   # Option 1: Run directly with Python
    python app.py
+
+   # Option 2: Use the convenience script
+   chmod +x start_server.sh
+   ./start_server.sh
    ```
 
 The API will be available at `http://localhost:5000/api/query`.
+
+## Troubleshooting
+
+1. **Connection issues**: Make sure your PostgreSQL server is running and accessible with the user credentials specified.
+
+2. **Port conflicts**: If port 5000 is already in use, you can modify the port in `app.py`.
+
+3. **CORS issues**: By default, the server accepts requests from any origin. If you're experiencing CORS issues, check your frontend's URL.
+
+4. **Dependencies**: If you encounter dependency conflicts, try creating a virtual environment:
+   ```
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
 
 ## API Usage
 

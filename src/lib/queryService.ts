@@ -22,13 +22,22 @@ export interface QueryResult {
  */
 export async function processQuery(query: string): Promise<QueryResult> {
   try {
+    console.log('Attempting to connect to backend at:', API_URL);
+    
+    // Check if the backend is accessible with a timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second timeout
+
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ question: query }),
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId); // Clear the timeout if request completes
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -36,6 +45,7 @@ export async function processQuery(query: string): Promise<QueryResult> {
     }
 
     const result = await response.json();
+    console.log('Received response from backend:', result);
     
     // Transform the result into the expected format
     const transformedData = transformDataFromPython(result);
@@ -53,13 +63,27 @@ export async function processQuery(query: string): Promise<QueryResult> {
     };
   } catch (error) {
     console.error('Error processing query:', error);
-    toast.error(`Failed to process query: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    
+    let errorMessage = '';
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        errorMessage = 'Connection to backend server timed out. Make sure the Flask server is running at http://localhost:5000';
+      } else if (error.message.includes('Failed to fetch')) {
+        errorMessage = 'Could not connect to the backend server. Please ensure the Flask server is running on http://localhost:5000';
+      } else {
+        errorMessage = error.message;
+      }
+    } else {
+      errorMessage = 'Unknown error';
+    }
+    
+    toast.error(`Failed to process query: ${errorMessage}`);
     
     // Return empty result on error
     return {
       data: [],
       sql: '',
-      explanation: `Error processing query: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      explanation: `Error processing query: ${errorMessage}. Make sure you've started the Flask backend with "cd src/server && python app.py"`,
     };
   }
 }
