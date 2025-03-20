@@ -1,5 +1,6 @@
 
 import { MessageSquare } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ResponseContainerProps {
   response: string | null;
@@ -8,6 +9,15 @@ interface ResponseContainerProps {
 
 const ResponseContainer = ({ response, isLoading }: ResponseContainerProps) => {
   if (!response && !isLoading) return null;
+  
+  // Format the response text with proper paragraphs
+  const formatResponse = (text: string) => {
+    return text.split('\n\n').map((paragraph, index) => (
+      <p key={index} className={index > 0 ? 'mt-3' : ''}>
+        {paragraph}
+      </p>
+    ));
+  };
   
   return (
     <div className="w-full mt-8 animate-fade-in">
@@ -31,9 +41,13 @@ const ResponseContainer = ({ response, isLoading }: ResponseContainerProps) => {
                 <div className="w-2 h-2 rounded-full bg-accent/40 animate-pulse animate-delay-200"></div>
               </div>
             ) : (
-              <div className="text-muted-foreground">
-                {response || "Based on your query, I've analyzed the data and found some interesting patterns. The conversion rate varies significantly by country, with Japan (15.3%) and Germany (14.8%) showing the highest rates, while Brazil (6.2%) and Mexico (7.1%) have lower conversion rates. North American and European markets generally outperform other regions."}
-              </div>
+              <ScrollArea className="max-h-80">
+                <div className="text-muted-foreground space-y-2">
+                  {response ? formatResponse(response) : (
+                    <p>Based on your query, I've analyzed the data and found some interesting patterns. The visualization shows the key results from your query.</p>
+                  )}
+                </div>
+              </ScrollArea>
             )}
           </div>
         </div>

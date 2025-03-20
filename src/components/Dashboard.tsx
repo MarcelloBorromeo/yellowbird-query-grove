@@ -1,29 +1,33 @@
 
 import { useState, useEffect } from 'react';
 import ChartCard from './ChartCard';
+import PlotlyVisualization from './PlotlyVisualization';
 import { Download, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
+import { QueryResult } from '@/lib/queryService';
 
 interface DashboardProps {
   data: any[] | null;
   isLoading: boolean;
   query?: string;
   isSharedView?: boolean;
+  visualizations?: QueryResult['visualizations'];
 }
 
 const Dashboard = ({
   data,
   isLoading,
   query = '',
-  isSharedView = false
+  isSharedView = false,
+  visualizations = []
 }: DashboardProps) => {
   const [showDashboard, setShowDashboard] = useState(false);
   
   useEffect(() => {
-    if (data && !isLoading) {
+    if ((data && !isLoading) || (visualizations && visualizations.length > 0)) {
       setShowDashboard(true);
     }
-  }, [data, isLoading]);
+  }, [data, isLoading, visualizations]);
   
   if (!showDashboard) return null;
   
@@ -84,7 +88,20 @@ const Dashboard = ({
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {data && data.length > 0 ? (
+            {/* First, try to render Plotly visualizations if available */}
+            {visualizations && visualizations.length > 0 ? (
+              // Map through the visualizations from the backend
+              visualizations.map((viz, index) => (
+                <PlotlyVisualization
+                  key={`viz-${index}`}
+                  title={viz.type.charAt(0).toUpperCase() + viz.type.slice(1) + ' Chart'}
+                  description={viz.description || 'Generated visualization'}
+                  figure={viz.figure}
+                  type={viz.type}
+                />
+              ))
+            ) : data && data.length > 0 ? (
+              // Fallback to recharts visualizations if Plotly data not available
               <>
                 <ChartCard 
                   title="Primary Visualization" 

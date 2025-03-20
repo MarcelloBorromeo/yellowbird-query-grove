@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Code, Database, RefreshCw, Check, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface QueryProcessProps {
   userQuery: string;
@@ -75,18 +76,23 @@ const QueryProcess = ({
             </div>
           </div>
           
-          {/* SQL Output */}
+          {/* SQL Output with ScrollArea */}
           {sqlQuery ? (
             <div className="mt-2 pl-8">
               <div className="relative">
                 <div className="relative">
-                  <pre className="text-xs font-mono bg-secondary/30 p-3 rounded-md overflow-x-auto max-h-72 scrollbar-thin">
-                    <code>{sqlQuery}</code>
-                  </pre>
+                  <ScrollArea className="h-60 rounded-md">
+                    <pre className="text-xs font-mono bg-secondary/30 p-3 rounded-md overflow-x-auto">
+                      <code>{sqlQuery}</code>
+                    </pre>
+                  </ScrollArea>
                   <div className="absolute top-2 right-2">
                     <button 
                       className="text-xs bg-secondary/50 hover:bg-secondary px-2 py-1 rounded text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={() => navigator.clipboard.writeText(sqlQuery || '')}
+                      onClick={() => {
+                        navigator.clipboard.writeText(sqlQuery || '');
+                        toast.success('SQL copied to clipboard');
+                      }}
                     >
                       Copy
                     </button>

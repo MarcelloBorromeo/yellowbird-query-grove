@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import QueryInput from '@/components/QueryInput';
@@ -7,7 +8,7 @@ import ResponseContainer from '@/components/ResponseContainer';
 import SuggestionChips from '@/components/SuggestionChips';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
-import { processQuery } from '@/lib/queryService';
+import { processQuery, QueryResult } from '@/lib/queryService';
 import { DataPoint } from '@/lib/mockData';
 
 const Index = () => {
@@ -20,6 +21,7 @@ const Index = () => {
   const [dashboardData, setDashboardData] = useState<DataPoint[] | null>(null);
   const [response, setResponse] = useState<string | null>(null);
   const [isSharedView, setIsSharedView] = useState(false);
+  const [visualizations, setVisualizations] = useState<QueryResult['visualizations']>([]);
   const [searchParams] = useSearchParams();
   
   // Check if we're viewing a shared dashboard or chart
@@ -58,6 +60,7 @@ const Index = () => {
       setSqlQuery(result.sql);
       setDashboardData(result.data);
       setResponse(result.explanation);
+      setVisualizations(result.visualizations);
       
       toast.success('Dashboard loaded successfully');
     } catch (error) {
@@ -79,6 +82,7 @@ const Index = () => {
     if (!isFollowUp) {
       setDashboardData(null);
       setResponse(null);
+      setVisualizations([]);
       setQueryHistory([]);
     } else {
       // For follow-up queries, keep the history
@@ -90,6 +94,7 @@ const Index = () => {
       const result = await processQuery(query);
       
       setSqlQuery(result.sql);
+      setVisualizations(result.visualizations);
       
       if (result.data && result.data.length > 0) {
         setDashboardData(result.data);
@@ -169,6 +174,7 @@ const Index = () => {
             isLoading={isProcessing}
             query={userQuery}
             isSharedView={isSharedView}
+            visualizations={visualizations}
           />
         </div>
       </main>
