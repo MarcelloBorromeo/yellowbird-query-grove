@@ -4,6 +4,7 @@ import { DataPoint } from './mockData';
 
 // Configuration
 const API_URL = 'http://localhost:5001/api/query'; // Updated port from 5000 to 5001
+const API_BASE_URL = 'http://localhost:5001';
 
 export interface QueryResult {
   data: DataPoint[];
@@ -18,6 +19,27 @@ export interface QueryResult {
 }
 
 /**
+ * Check if the backend server is accessible
+ */
+export async function checkBackendConnection(): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await fetch(`${API_BASE_URL}/`, {
+      method: 'GET',
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    return response.ok;
+  } catch (error) {
+    console.error('Backend connection check failed:', error);
+    return false;
+  }
+}
+
+/**
  * Process a natural language query and get results from the database
  */
 export async function processQuery(query: string): Promise<QueryResult> {
@@ -25,16 +47,15 @@ export async function processQuery(query: string): Promise<QueryResult> {
     console.log('Attempting to connect to backend at:', API_URL);
     
     // First, perform a connection test
-    try {
-      const testResponse = await fetch('http://localhost:5001/'); // Updated port here too
-      console.log('Basic connection test response:', testResponse.status);
-    } catch (testError) {
-      console.error('Connection test failed:', testError);
+    const isConnected = await checkBackendConnection();
+    
+    if (!isConnected) {
+      throw new Error('Backend server is not accessible. Please ensure the Flask server is running.');
     }
     
-    // Check if the backend is accessible with a timeout
+    // If connected, proceed with the query
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30-second timeout for query processing
 
     const response = await fetch(API_URL, {
       method: 'POST',
@@ -95,7 +116,7 @@ export async function processQuery(query: string): Promise<QueryResult> {
     if (error instanceof Error) {
       if (error.name === 'AbortError') {
         errorMessage = 'Connection to backend server timed out. Make sure the Flask server is running at http://localhost:5001';
-      } else if (error.message.includes('Failed to fetch')) {
+      } else if (error.message.includes('Failed to fetch') || error.message.includes('not accessible')) {
         errorMessage = 'Could not connect to the backend server. Please ensure the Flask server is running on http://localhost:5001. Check for CORS issues in your browser console.';
       } else {
         errorMessage = error.message;

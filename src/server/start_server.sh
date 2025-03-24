@@ -1,3 +1,4 @@
+
 #!/bin/bash
 echo "Starting YellowBird API Server..."
 echo "Checking dependencies..."
@@ -34,6 +35,15 @@ else
     echo "Warning: curl is not installed. Cannot perform API connectivity test."
 fi
 
+echo "Checking Python version..."
+# Make sure Python version is compatible
+$PYTHON_CMD -c "import sys; exit(0) if sys.version_info >= (3, 9) else exit(1)" || {
+    echo "Error: Python 3.9+ is required. Current version:"
+    $PYTHON_CMD --version
+    echo "Please upgrade your Python installation."
+    exit 1
+}
+
 echo "Checking PostgreSQL connection..."
 # Try to connect to PostgreSQL
 if command -v psql &> /dev/null; then
@@ -41,7 +51,11 @@ if command -v psql &> /dev/null; then
     # Note: This assumes default PostgreSQL setup. Modify if your setup is different.
     if ! psql -U postgres -c "SELECT 1 FROM pg_database WHERE datname='YellowBird'" | grep -q 1; then
         echo "Warning: YellowBird database may not exist in PostgreSQL."
-        echo "You may need to create it with: createdb -U postgres YellowBird"
+        echo "Creating YellowBird database..."
+        createdb -U postgres YellowBird || {
+            echo "Error: Failed to create YellowBird database. Please create it manually with:"
+            echo "createdb -U postgres YellowBird"
+        }
     else
         echo "PostgreSQL connection successful and YellowBird database exists."
     fi
@@ -50,15 +64,33 @@ else
     echo "Make sure PostgreSQL is installed and running."
 fi
 
+echo "Updating pip to the latest version..."
+$PIP_CMD install --upgrade pip
+
 echo "Installing required Python packages..."
-# Improved package installation with better error handling
-for package in $(cat requirements.txt)
-do
-    echo "Installing $package..."
-    $PIP_CMD install $package || {
-        echo "Error installing $package. Will try to continue..."
+# First, try to install all packages at once for speed
+$PIP_CMD install -r requirements.txt || {
+    echo "Some packages failed to install together. Trying individual installation..."
+    # If that fails, install packages one by one
+    while read package; do
+        echo "Installing $package..."
+        $PIP_CMD install $package || {
+            echo "Error installing $package. Will try to continue..."
+        }
+    done < requirements.txt
+}
+
+# Specific check for langgraph since it's critical
+echo "Checking if langgraph is installed correctly..."
+$PYTHON_CMD -c "import langgraph" 2>/dev/null || {
+    echo "langgraph not found. Trying to install directly..."
+    $PIP_CMD install langgraph
+    # Check again
+    $PYTHON_CMD -c "import langgraph" 2>/dev/null || {
+        echo "Error: Failed to install langgraph. This package is required."
+        echo "Try installing manually with: $PIP_CMD install git+https://github.com/langchain-ai/langgraph.git"
     }
-done
+}
 
 PORT=5001  # Updated port from 5000 to 5001
 
@@ -124,6 +156,8 @@ echo "If you see 'Failed to fetch' errors in your frontend:"
 echo "1. Make sure the Flask server is running (check for errors above)"
 echo "2. Check your browser console for CORS errors"
 echo "3. Ensure your frontend is using http://localhost:$PORT/api/query as the API URL"
+echo "4. Try manually creating the database with: createdb -U postgres YellowBird"
+echo "5. If all else fails, restart your computer to ensure no processes are blocking the port"
 echo "-----------------------------------"
 
 # Keep the script running until Ctrl+C
