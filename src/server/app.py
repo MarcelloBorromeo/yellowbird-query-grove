@@ -6,6 +6,7 @@ import sys
 import os
 import traceback
 import numpy as np
+import socket
 
 # Add the directory containing the Python module to the path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -55,6 +56,10 @@ except ImportError as e:
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})  # Updated CORS to be more permissive for testing
+
+def is_port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) == 0
 
 @app.route('/', methods=['GET'])
 def healthcheck():
@@ -153,6 +158,6 @@ def _numpy_to_python_types(obj):
         return obj
 
 if __name__ == '__main__':
-    PORT = 5002  # Changed from 5001 to 5002
+    PORT = 5002  # Using port 5002
     print(f"Starting Flask server on http://localhost:{PORT}")
     app.run(debug=True, port=PORT, host='0.0.0.0')  # Use 0.0.0.0 to allow external connections

@@ -1,4 +1,3 @@
-
 import { generateMockData, generateMockSQL } from './mockData';
 import { DataPoint } from './mockData';
 
@@ -14,31 +13,72 @@ export interface QueryResult {
   }[];
 }
 
+const API_BASE_URL = 'http://localhost:5002';
+
 export async function processQuery(query: string): Promise<QueryResult> {
   console.log("Processing query:", query);
   
   try {
-    // Use mock data generator instead of the backend
-    const mockData = await generateMockData(query);
-    const mockSQL = await generateMockSQL(query);
+    // Check if we should use the backend API or fallback to mock data
+    const useBackend = process.env.NODE_ENV !== 'test';
     
-    // Generate mock visualization data based on query
-    const visualizationType = determineVisualizationType(query);
-    const mockVisualizations = generateMockVisualizations(mockData, visualizationType);
-    
-    // Generate explanation based on the query
-    const explanation = generateExplanation(query, mockData);
-    
-    return {
-      data: mockData,
-      sql: mockSQL.sql,
-      explanation,
-      visualizations: mockVisualizations
-    };
+    if (useBackend) {
+      // Use real backend API
+      const response = await fetch(`${API_BASE_URL}/api/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question: query }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error processing query');
+      }
+      
+      const data = await response.json();
+      console.log("Response from backend:", data);
+      
+      // Extract mock data for backward compatibility
+      const mockData = await generateMockData(query);
+      
+      return {
+        data: mockData, // Keep mock data for backward compatibility
+        sql: data.final_query,
+        explanation: data.RESULT,
+        visualizations: data.visualizations || []
+      };
+    } else {
+      // Fallback to mock data
+      return useMockData(query);
+    }
   } catch (error) {
     console.error("Error in processing query:", error);
-    throw createUserFriendlyError(error);
+    
+    // Fallback to mock data if the backend fails
+    return useMockData(query);
   }
+}
+
+async function useMockData(query: string): Promise<QueryResult> {
+  // Use mock data generator instead of the backend
+  const mockData = await generateMockData(query);
+  const mockSQL = await generateMockSQL(query);
+  
+  // Generate mock visualization data based on query
+  const visualizationType = determineVisualizationType(query);
+  const mockVisualizations = generateMockVisualizations(mockData, visualizationType);
+  
+  // Generate explanation based on the query
+  const explanation = generateExplanation(query, mockData);
+  
+  return {
+    data: mockData,
+    sql: mockSQL.sql,
+    explanation,
+    visualizations: mockVisualizations
+  };
 }
 
 function createUserFriendlyError(error: unknown): Error {

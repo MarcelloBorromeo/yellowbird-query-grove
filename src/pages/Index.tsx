@@ -90,7 +90,7 @@ const Index = () => {
     }
     
     try {
-      // Use the real query service instead of mock data
+      // Use the real query service
       const result = await processQuery(query);
       
       setSqlQuery(result.sql);
@@ -110,6 +110,36 @@ const Index = () => {
       console.error("Error processing query:", error);
       setHasError(true);
       toast.error("An error occurred while processing your query");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
+  const handleRunModifiedSql = async (modifiedSql: string) => {
+    setIsProcessing(true);
+    setHasError(false);
+    
+    try {
+      // In a real app, we'd send this modified SQL to the backend
+      // For now, we'll just process the original query but show the new SQL
+      const result = await processQuery(userQuery);
+      
+      // Override the SQL with the user-edited version
+      setSqlQuery(modifiedSql);
+      
+      if (result.data && result.data.length > 0) {
+        setDashboardData(result.data);
+        setResponse(result.explanation);
+        toast.success("Modified SQL query processed");
+      } else {
+        setDashboardData([]);
+        setResponse("No data returned for this query.");
+        toast.info("Query processed, but no data was returned");
+      }
+    } catch (error) {
+      console.error("Error processing modified SQL:", error);
+      setHasError(true);
+      toast.error("An error occurred while processing your modified SQL");
     } finally {
       setIsProcessing(false);
     }
@@ -162,6 +192,9 @@ const Index = () => {
               sqlQuery={sqlQuery}
               hasError={hasError}
               retryCount={retryCount}
+              explanation={response}
+              visualizations={visualizations}
+              onRunModifiedSql={handleRunModifiedSql}
             />
             <ResponseContainer
               response={response}

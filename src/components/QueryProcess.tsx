@@ -28,12 +28,20 @@ const QueryProcess = ({
   onRunModifiedSql
 }: QueryProcessProps) => {
   const [showProcess, setShowProcess] = useState(false);
+  const [editedSql, setEditedSql] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
   
   useEffect(() => {
     if (userQuery) {
       setShowProcess(true);
     }
   }, [userQuery]);
+  
+  useEffect(() => {
+    if (sqlQuery && !editedSql) {
+      setEditedSql(sqlQuery);
+    }
+  }, [sqlQuery]);
   
   // Log visualizations for debugging
   useEffect(() => {
@@ -53,6 +61,23 @@ const QueryProcess = ({
     
     // Set a reasonable height based on the number of lines (with a min and max)
     return `${Math.max(Math.min(lineCount * 24, 400), 60)}px`;
+  };
+  
+  const handleSqlEdit = () => {
+    setIsEditing(true);
+  };
+  
+  const handleRunModifiedSql = () => {
+    if (onRunModifiedSql && editedSql) {
+      onRunModifiedSql(editedSql);
+      setIsEditing(false);
+      toast.success('Running modified SQL query');
+    }
+  };
+  
+  const handleCancelEdit = () => {
+    setEditedSql(sqlQuery);
+    setIsEditing(false);
   };
   
   return (
@@ -80,6 +105,34 @@ const QueryProcess = ({
                 {isProcessing ? "Generating SQL" + (retryCount > 0 ? ` (Attempt ${retryCount + 1})` : "") : hasError ? "Error Generating SQL" : "SQL Generated Successfully"}
               </h3>
             </div>
+            
+            {sqlQuery && onRunModifiedSql && !isProcessing && !hasError && (
+              <div className="flex space-x-2">
+                {isEditing ? (
+                  <>
+                    <button 
+                      onClick={handleRunModifiedSql}
+                      className="text-xs bg-green-500/20 hover:bg-green-500/30 px-2 py-1 rounded text-green-700 transition-colors"
+                    >
+                      Run
+                    </button>
+                    <button 
+                      onClick={handleCancelEdit}
+                      className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded text-gray-700 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button 
+                    onClick={handleSqlEdit}
+                    className="text-xs bg-secondary/50 hover:bg-secondary px-2 py-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Edit SQL
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           
           {/* SQL Output with Dynamic Height */}
@@ -87,11 +140,21 @@ const QueryProcess = ({
             <div className="mt-2 pl-8">
               <div className="relative">
                 <div className="relative">
-                  <ScrollArea className="rounded-md" style={{ height: getSqlHeight() }}>
-                    <pre className="text-xs font-mono bg-secondary/30 p-3 rounded-md overflow-x-auto">
-                      <code>{sqlQuery}</code>
-                    </pre>
-                  </ScrollArea>
+                  {isEditing ? (
+                    <div className="rounded-md">
+                      <textarea
+                        className="w-full h-[300px] text-xs font-mono bg-secondary/30 p-3 rounded-md"
+                        value={editedSql || ''}
+                        onChange={(e) => setEditedSql(e.target.value)}
+                      />
+                    </div>
+                  ) : (
+                    <ScrollArea className="rounded-md" style={{ height: getSqlHeight() }}>
+                      <pre className="text-xs font-mono bg-secondary/30 p-3 rounded-md overflow-x-auto">
+                        <code>{sqlQuery}</code>
+                      </pre>
+                    </ScrollArea>
+                  )}
                   <div className="absolute top-2 right-2">
                     <button 
                       className="text-xs bg-secondary/50 hover:bg-secondary px-2 py-1 rounded text-muted-foreground hover:text-foreground transition-colors" 
