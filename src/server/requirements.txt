@@ -6,6 +6,7 @@ plotly
 langchain
 langchain_openai
 langchain_community
+langgraph
 openai
 psycopg2-binary
 numpy

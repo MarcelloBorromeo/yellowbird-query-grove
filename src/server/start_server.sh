@@ -1,4 +1,3 @@
-
 #!/bin/bash
 echo "Starting YellowBird API Server..."
 echo "Checking dependencies..."
@@ -52,7 +51,14 @@ else
 fi
 
 echo "Installing required Python packages..."
-$PIP_CMD install -r requirements.txt
+# Improved package installation with better error handling
+for package in $(cat requirements.txt)
+do
+    echo "Installing $package..."
+    $PIP_CMD install $package || {
+        echo "Error installing $package. Will try to continue..."
+    }
+done
 
 PORT=5001  # Updated port from 5000 to 5001
 
