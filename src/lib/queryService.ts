@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { DataPoint } from './mockData';
 
 // Configuration
-const API_URL = 'http://localhost:5001/api/query'; // Updated port from 5000 to 5001
+const API_URL = 'http://localhost:5002/api/query'; // Updated port from 5001 to 5002
 
 export interface QueryResult {
   data: DataPoint[];
@@ -26,7 +26,7 @@ export async function processQuery(query: string): Promise<QueryResult> {
     
     // First, perform a connection test
     try {
-      const testResponse = await fetch('http://localhost:5001/'); // Updated port here too
+      const testResponse = await fetch('http://localhost:5002/'); // Updated port from 5001 to 5002
       console.log('Basic connection test response:', testResponse.status);
     } catch (testError) {
       console.error('Connection test failed:', testError);
@@ -94,9 +94,9 @@ export async function processQuery(query: string): Promise<QueryResult> {
     let errorMessage = '';
     if (error instanceof Error) {
       if (error.name === 'AbortError') {
-        errorMessage = 'Connection to backend server timed out. Make sure the Flask server is running at http://localhost:5001';
+        errorMessage = 'Connection to backend server timed out. Make sure the Flask server is running at http://localhost:5002';
       } else if (error.message.includes('Failed to fetch')) {
-        errorMessage = 'Could not connect to the backend server. Please ensure the Flask server is running on http://localhost:5001. Check for CORS issues in your browser console.';
+        errorMessage = 'Could not connect to the backend server. Please ensure the Flask server is running on http://localhost:5002. Check for CORS issues in your browser console.';
       } else {
         errorMessage = error.message;
       }
@@ -120,8 +120,8 @@ Troubleshooting steps:
 2. Check that PostgreSQL is running with a database named "YellowBird"
 3. Check your browser console (F12) for:
    - CORS errors: they appear as "Access-Control-Allow-Origin" errors
-   - Network errors: look for failed requests to localhost:5001
-4. Make sure no other application is using port 5001
+   - Network errors: look for failed requests to localhost:5002
+4. Make sure no other application is using port 5002
 5. If everything else fails, try restarting both your frontend and backend servers`,
     };
   }

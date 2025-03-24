@@ -1,3 +1,4 @@
+
 #!/bin/bash
 echo "Starting YellowBird API Server..."
 echo "Checking dependencies..."
@@ -60,7 +61,7 @@ do
     }
 done
 
-PORT=5001  # Updated port from 5000 to 5001
+PORT=5002  # Updated port from 5001 to 5002
 
 echo "Testing network connectivity on port $PORT..."
 # Check if port $PORT is already in use

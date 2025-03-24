@@ -153,6 +153,6 @@ def _numpy_to_python_types(obj):
         return obj
 
 if __name__ == '__main__':
-    PORT = 5001
+    PORT = 5002  # Changed from 5001 to 5002
     print(f"Starting Flask server on http://localhost:{PORT}")
     app.run(debug=True, port=PORT, host='0.0.0.0')  # Use 0.0.0.0 to allow external connections
