@@ -24,7 +24,7 @@ const Dashboard = ({
   const [showDashboard, setShowDashboard] = useState(false);
   
   useEffect(() => {
-    if ((data && !isLoading) || (visualizations && visualizations.length > 0)) {
+    if ((data && data.length > 0 && !isLoading) || (visualizations && visualizations.length > 0)) {
       setShowDashboard(true);
     }
   }, [data, isLoading, visualizations]);
@@ -107,10 +107,10 @@ const Dashboard = ({
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {visualizations && visualizations.length > 0 ? (
-              // Map through the visualizations from the backend
-              visualizations.map((viz, index) => (
+          {visualizations && visualizations.length > 0 ? (
+            // Display Plotly visualizations with flexible layout
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {visualizations.map((viz, index) => (
                 <PlotlyVisualization 
                   key={`viz-${index}`} 
                   title={viz.description || viz.type.charAt(0).toUpperCase() + viz.type.slice(1) + ' Chart'} 
@@ -118,36 +118,37 @@ const Dashboard = ({
                   figure={viz.figure} 
                   type={viz.type} 
                 />
-              ))
-            ) : data && data.length > 0 ? (
-              // Fallback to recharts visualizations if Plotly data not available
-              <>
+              ))}
+            </div>
+          ) : data && data.length > 0 ? (
+            // Fallback to recharts visualizations if Plotly data not available
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <ChartCard 
+                title="Primary Visualization" 
+                description="Main chart for your query" 
+                chartType={chartTypes[0] as 'bar' | 'line' | 'pie' | 'area'} 
+                data={data} 
+                dataKey="value" 
+                nameKey="name" 
+              />
+              
+              {chartTypes.length > 1 && (
                 <ChartCard 
-                  title="Primary Visualization" 
-                  description="Main chart for your query" 
-                  chartType={chartTypes[0] as 'bar' | 'line' | 'pie' | 'area'} 
+                  title="Alternative View" 
+                  description="Different perspective on the data" 
+                  chartType={chartTypes[1] as 'bar' | 'line' | 'pie' | 'area'} 
                   data={data} 
                   dataKey="value" 
                   nameKey="name" 
                 />
-                
-                {chartTypes.length > 1 && (
-                  <ChartCard 
-                    title="Alternative View" 
-                    description="Different perspective on the data" 
-                    chartType={chartTypes[1] as 'bar' | 'line' | 'pie' | 'area'} 
-                    data={data} 
-                    dataKey="value" 
-                    nameKey="name" 
-                  />
-                )}
-              </>
-            ) : (
-              <div className="col-span-2 flex flex-col justify-center items-center h-60">
-                <p className="text-muted-foreground mb-4">No visualization data available</p>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col justify-center items-center h-60">
+              <p className="text-muted-foreground mb-4">No visualization data available</p>
+              <p className="text-sm text-muted-foreground">Try a query that would benefit from data visualization</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
