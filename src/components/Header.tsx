@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Database, BarChart3, Menu, X, History } from 'lucide-react';
+import { Database, BarChart3, Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const Header = () => {
@@ -35,17 +35,6 @@ const Header = () => {
               <BarChart3 className="h-4 w-4" />
               <span>Dashboard</span>
             </NavLink>
-            
-            <NavLink 
-              to="/histories" 
-              className={({isActive}) => cn(
-                "flex items-center space-x-1 text-sm font-medium py-2 text-black",
-                isActive && "border-b-2 border-yellowbird-500"
-              )}
-            >
-              <History className="h-4 w-4" />
-              <span>Histories</span>
-            </NavLink>
           </nav>
           
           {/* Mobile Menu Button */}
@@ -76,18 +65,6 @@ const Header = () => {
           >
             <BarChart3 className="h-5 w-5" />
             <span>Dashboard</span>
-          </NavLink>
-          
-          <NavLink 
-            to="/histories" 
-            className={({isActive}) => cn(
-              "flex items-center space-x-2 text-lg font-medium p-2 rounded-lg text-black",
-              isActive ? "bg-yellowbird-50" : "hover:bg-gray-50"
-            )}
-            onClick={() => setIsMobileMenuOpen(false)}
-          >
-            <History className="h-5 w-5" />
-            <span>Histories</span>
           </NavLink>
         </nav>
       </div>
