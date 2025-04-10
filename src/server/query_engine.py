@@ -73,42 +73,6 @@ class GraphState(TypedDict):
     explanation: Optional[str]
     error: Optional[str]
 
-# Utility function for data processing and conversion
-def convert_to_dataframe(data, sql_query=""):
-    """Convert SQL results to a DataFrame"""
-    try:
-        if isinstance(data, str):
-            # Try to parse CSV or JSON strings
-            try:
-                # Try CSV first
-                return pd.read_csv(StringIO(data))
-            except:
-                # Try JSON
-                return pd.DataFrame(json.loads(data))
-        elif isinstance(data, list):
-            # Handle list of dicts
-            if len(data) > 0 and isinstance(data[0], dict):
-                return pd.DataFrame(data)
-            else:
-                # Handle list of lists with column inference
-                df = pd.DataFrame(data)
-                # Try to extract column names from SQL query
-                if sql_query:
-                    column_match = re.search(r'SELECT\s+(.*?)\s+FROM', sql_query, re.IGNORECASE)
-                    if column_match:
-                        columns = [c.strip().split(' AS ')[-1].strip() for c in column_match.group(1).split(',')]
-                        if len(columns) == df.shape[1]:
-                            df.columns = columns
-                return df
-        elif isinstance(data, pd.DataFrame):
-            return data
-        else:
-            # Handle other types or empty results
-            return pd.DataFrame()
-    except Exception as e:
-        logger.error(f"Error converting data to DataFrame: {e}")
-        return pd.DataFrame()
-
 # Node functions
 @log_errors
 def generate_data_context() -> str:
@@ -166,6 +130,8 @@ def execute_sql_node(state: GraphState) -> GraphState:
         logger.error(f"SQL execution error: {str(e)}")
         # Return empty data instead of failing
         return {"data": []}
+
+# ... keep existing code (utility functions for data processing)
 
 @log_errors
 def decide_visualization_node(state: GraphState) -> Dict[str, str]:
@@ -376,61 +342,11 @@ def process_data_node(state: GraphState) -> GraphState:
     
     return {"dataframe": df, "visualizations": visualizations}
 
-@log_errors
-def generate_explanation_node(state: GraphState) -> GraphState:
-    """Generate a natural language explanation of the results"""
-    # Extract insights from the data
-    explanation = "Here are the results of your query."
-    if state.get("dataframe") is not None:
-        df = state["dataframe"]
-        if not df.empty:
-            num_rows = len(df)
-            num_cols = len(df.columns)
-            explanation = f"Found {num_rows} results with {num_cols} columns. "
-            
-            # Add specific insights based on data types
-            numeric_cols = df.select_dtypes(include=['number']).columns
-            if len(numeric_cols) > 0:
-                col = numeric_cols[0]
-                explanation += f"The average {col} is {df[col].mean():.2f}. "
-                
-            # Add visualization explanation
-            if state.get("visualizations"):
-                explanation += f"Generated {len(state['visualizations'])} visualizations to help understand the data."
-    
-    return {"explanation": explanation}
+# ... keep existing code (explanation functions)
 
-@log_errors
+# Build the graph
 def build_graph():
-    """Build the LangGraph for query processing"""
-    # Define the nodes of the graph
-    nodes = {
-        "analyze_question": analyze_question_node,
-        "generate_sql": generate_sql_node,
-        "execute_sql": execute_sql_node,
-        "decide_visualization": decide_visualization_node,
-        "process_data": process_data_node,
-        "generate_explanation": generate_explanation_node
-    }
-    
-    # Create the graph
-    graph = StateGraph(nodes=nodes)
-    
-    # Define the edges of the graph
-    graph.add_edge("analyze_question", "generate_sql")
-    graph.add_edge("generate_sql", "execute_sql")
-    graph.add_edge("execute_sql", "decide_visualization")
-    graph.add_conditional_edges(
-        "decide_visualization",
-        lambda x: x["next"],
-        {
-            "process_data": "process_data",
-            "generate_explanation": "generate_explanation"
-        }
-    )
-    graph.add_edge("process_data", "generate_explanation")
-    graph.add_edge("generate_explanation", END)
-    
+    # ... keep existing code (graph structure)
     return graph.compile()
 
 # Helper function to make json serializable (handling numpy types)
