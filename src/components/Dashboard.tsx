@@ -28,20 +28,8 @@ const Dashboard = ({
     const hasData = data && data.length > 0;
     const hasVisualizations = visualizations && visualizations.length > 0;
     
-    if (isLoading) {
-      console.log("Dashboard: Loading state active, waiting for data...");
-    }
-    
     if ((hasData || hasVisualizations) && !isLoading) {
-      console.log(`Dashboard: Will show with ${hasData ? data?.length : 0} data points and ${hasVisualizations ? visualizations?.length : 0} visualizations`);
       setShowDashboard(true);
-    } else if (!isLoading) {
-      console.log("Dashboard: No data or visualizations available to display");
-      if (visualizations) {
-        console.log(`Dashboard visualizations array exists but has ${visualizations.length} items`);
-      } else {
-        console.log("Dashboard visualizations is undefined or null");
-      }
     }
   }, [data, isLoading, visualizations]);
   
@@ -59,8 +47,7 @@ const Dashboard = ({
         console.log(`Visualization ${idx+1}:`, {
           type: viz.type,
           hasFigure: !!viz.figure,
-          description: viz.description || 'No description',
-          figureType: viz.figure ? typeof viz.figure : 'undefined'
+          description: viz.description
         });
         
         // Check that the figure has correct properties
@@ -82,8 +69,7 @@ const Dashboard = ({
     }
   }, [visualizations]);
 
-  // Always show dashboard even without data to provide feedback to user
-  // if (!showDashboard) return null;
+  if (!showDashboard) return null;
 
   // Helper function to determine chart types based on query
   const determineChartTypes = (query: string) => {
@@ -103,21 +89,6 @@ const Dashboard = ({
   };
   
   const chartTypes = determineChartTypes(query);
-  
-  // If there's nothing to show and we're not loading, provide feedback
-  if (!showDashboard && !isLoading) {
-    return (
-      <div className="w-full mt-8 mb-20 animate-fade-in-up">
-        <div className="container px-4 mx-auto">
-          <div className="bg-card/40 backdrop-blur-sm border border-border rounded-xl p-6 pb-8">
-            <div className="flex justify-center items-center h-40">
-              <p className="text-muted-foreground">No visualization data available. Try a query that would generate charts.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
   
   return (
     <div className="w-full mt-8 mb-20 animate-fade-in-up">
@@ -190,11 +161,6 @@ const Dashboard = ({
                   nameKey="name" 
                 />
               )}
-            </div>
-          ) : isLoading ? (
-            <div className="flex flex-col justify-center items-center h-60">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-400 mb-4"></div>
-              <p className="text-muted-foreground">Loading visualization data...</p>
             </div>
           ) : (
             <div className="flex flex-col justify-center items-center h-60">
