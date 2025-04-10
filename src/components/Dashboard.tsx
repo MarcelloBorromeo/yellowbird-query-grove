@@ -30,6 +30,8 @@ const Dashboard = ({
     
     if ((hasData || hasVisualizations) && !isLoading) {
       setShowDashboard(true);
+    } else {
+      console.log("Dashboard not showing: hasData=", hasData, "hasVisualizations=", hasVisualizations, "isLoading=", isLoading);
     }
   }, [data, isLoading, visualizations]);
   
@@ -38,7 +40,8 @@ const Dashboard = ({
     console.log('Dashboard visualizations state:', {
       count: visualizations?.length || 0,
       isArray: Array.isArray(visualizations),
-      isEmpty: !visualizations || visualizations.length === 0
+      isEmpty: !visualizations || visualizations.length === 0,
+      visObjects: visualizations
     });
     
     if (visualizations && visualizations.length > 0) {
@@ -47,7 +50,8 @@ const Dashboard = ({
         console.log(`Visualization ${idx+1}:`, {
           type: viz.type,
           hasFigure: !!viz.figure,
-          description: viz.description
+          description: viz.description,
+          figureType: typeof viz.figure
         });
         
         // Check that the figure has correct properties
@@ -57,7 +61,8 @@ const Dashboard = ({
             console.log(`Visualization ${idx+1} figure:`, {
               hasData: !!figData.data && Array.isArray(figData.data),
               dataLength: figData.data?.length || 0,
-              hasLayout: !!figData.layout
+              hasLayout: !!figData.layout,
+              firstTrace: figData.data && figData.data.length > 0 ? figData.data[0].type : 'none'
             });
           } catch (e) {
             console.error(`Error parsing visualization ${idx+1} figure:`, e);
