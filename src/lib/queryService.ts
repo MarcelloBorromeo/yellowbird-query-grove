@@ -21,7 +21,8 @@ export interface QueryResult {
   totalToolCalls?: number;
 }
 
-const API_BASE_URL = 'http://localhost:5002';
+// Use relative URL instead of hardcoded localhost
+const API_BASE_URL = '/api';
 
 export async function processQuery(query: string): Promise<QueryResult> {
   console.log("Processing query:", query);
