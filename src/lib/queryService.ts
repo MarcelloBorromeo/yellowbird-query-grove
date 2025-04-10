@@ -1,5 +1,4 @@
 
-import { json } from 'stream/consumers';
 import { DataPoint } from './mockData';
 
 export interface QueryResult {
@@ -35,9 +34,6 @@ export async function processQuery(query: string): Promise<QueryResult> {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      // body: new URLSearchParams({
-      //   'question': query
-      // }),
       body: JSON.stringify({
         'question': query
       })
@@ -55,7 +51,7 @@ export async function processQuery(query: string): Promise<QueryResult> {
     const toolCalls: QueryResult['toolCalls'] = [];
     const visualizations: QueryResult['visualizations'] = [];
     
-    // Process history to extract tool calls and outputs
+    // Process history to extract tool calls and outputs if available
     if (responseData.history) {
       for (const message of responseData.history) {
         if (message.role === 'assistant' && message.tool_calls && message.tool_calls.length > 0) {
@@ -84,42 +80,66 @@ export async function processQuery(query: string): Promise<QueryResult> {
       }
     }
     
-    // Process visualizations
+    // Process visualizations from the response
     if (responseData.visualizations) {
-      for (const [toolCallId, plotlyJson] of Object.entries(responseData.visualizations)) {
-        try {
-          const plotData = JSON.parse(plotlyJson as string);
-          
-          // Simple heuristic to guess visualization type
-          let visType = 'bar';
-          if (plotData.data && plotData.data.length > 0) {
-            const firstTrace = plotData.data[0];
-            if (firstTrace.type === 'pie') {
-              visType = 'pie';
-            } else if (firstTrace.type === 'scatter' && firstTrace.mode?.includes('lines')) {
-              visType = 'line';
-            } else if (firstTrace.type === 'scatter' && firstTrace.fill === 'tozeroy') {
-              visType = 'area';
-            } else if (firstTrace.type === 'scatter' && firstTrace.mode?.includes('markers')) {
-              visType = 'scatter';
-            }
+      // Check if it's an array (as in your log) or an object (as in previous code)
+      if (Array.isArray(responseData.visualizations)) {
+        for (const viz of responseData.visualizations) {
+          try {
+            const plotData = typeof viz.figure === 'string' ? JSON.parse(viz.figure) : viz.figure;
+            
+            visualizations.push({
+              type: viz.type || 'bar',
+              figure: plotData,
+              description: viz.description || 'Visualization',
+              reason: viz.reason || 'This chart helps visualize your data.'
+            });
+          } catch (e) {
+            console.error("Error parsing visualization:", e);
           }
-          
-          visualizations.push({
-            type: visType,
-            figure: plotData,
-            description: `${visType.charAt(0).toUpperCase() + visType.slice(1)} Visualization`,
-            reason: `This ${visType} chart helps visualize your data.`
-          });
-        } catch (e) {
-          console.error("Error parsing visualization JSON:", e);
+        }
+      } else {
+        // Handle the previous object format if needed
+        for (const [toolCallId, plotlyJson] of Object.entries(responseData.visualizations)) {
+          try {
+            const plotData = typeof plotlyJson === 'string' ? JSON.parse(plotlyJson) : plotlyJson;
+            
+            // Simple heuristic to guess visualization type
+            let visType = 'bar';
+            if (plotData.data && plotData.data.length > 0) {
+              const firstTrace = plotData.data[0];
+              if (firstTrace.type === 'pie') {
+                visType = 'pie';
+              } else if (firstTrace.type === 'scatter' && firstTrace.mode?.includes('lines')) {
+                visType = 'line';
+              } else if (firstTrace.type === 'scatter' && firstTrace.fill === 'tozeroy') {
+                visType = 'area';
+              } else if (firstTrace.type === 'scatter' && firstTrace.mode?.includes('markers')) {
+                visType = 'scatter';
+              }
+            }
+            
+            visualizations.push({
+              type: visType,
+              figure: plotData,
+              description: `${visType.charAt(0).toUpperCase() + visType.slice(1)} Visualization`,
+              reason: `This ${visType} chart helps visualize your data.`
+            });
+          } catch (e) {
+            console.error("Error parsing visualization JSON:", e);
+          }
         }
       }
     }
     
-    // Extract explanation from the last assistant message
+    // Extract explanation based on the response format
     let explanation = '';
-    if (responseData.history) {
+    
+    if (responseData.RESULT) {
+      // Use the RESULT field if available
+      explanation = responseData.RESULT;
+    } else if (responseData.history) {
+      // Fall back to extracting from history if available
       const assistantMessages = responseData.history.filter((msg: any) => msg.role === 'assistant');
       if (assistantMessages.length > 0) {
         explanation = assistantMessages[assistantMessages.length - 1].content || '';
@@ -131,7 +151,8 @@ export async function processQuery(query: string): Promise<QueryResult> {
     
     return {
       data: mockData, // This will be empty but maintains API compatibility
-      sql: toolCalls.length > 0 ? JSON.stringify(toolCalls[0].arguments, null, 2) : '',
+      sql: toolCalls.length > 0 ? JSON.stringify(toolCalls[0].arguments, null, 2) : 
+           responseData.final_query || '',
       explanation,
       visualizations,
       toolCalls,
