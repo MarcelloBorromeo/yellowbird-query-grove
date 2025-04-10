@@ -49,7 +49,7 @@ export async function processQuery(query: string): Promise<QueryResult> {
     
     // Extract tool calls from the response history
     const toolCalls: QueryResult['toolCalls'] = [];
-    const visualizations: QueryResult['visualizations'] = [];
+    let visualizations: QueryResult['visualizations'] = [];
     
     // Process history to extract tool calls and outputs if available
     if (responseData.history) {
@@ -80,55 +80,116 @@ export async function processQuery(query: string): Promise<QueryResult> {
       }
     }
     
-    // Process visualizations from the response
+    // Check for visualizations in the response, handle multiple formats
     if (responseData.visualizations) {
-      // Check if it's an array (as in your log) or an object (as in previous code)
+      console.log("Visualization data found:", responseData.visualizations);
+      
+      // Process array format visualizations
       if (Array.isArray(responseData.visualizations)) {
-        for (const viz of responseData.visualizations) {
+        visualizations = responseData.visualizations.map((viz: any) => {
+          let figureData;
           try {
-            const plotData = typeof viz.figure === 'string' ? JSON.parse(viz.figure) : viz.figure;
-            
-            visualizations.push({
-              type: viz.type || 'bar',
-              figure: plotData,
-              description: viz.description || 'Visualization',
-              reason: viz.reason || 'This chart helps visualize your data.'
-            });
+            figureData = typeof viz.figure === 'string' ? JSON.parse(viz.figure) : viz.figure;
           } catch (e) {
-            console.error("Error parsing visualization:", e);
+            console.error("Error parsing visualization figure:", e);
+            figureData = { data: [], layout: {} }; // Provide default empty figure
           }
-        }
-      } else {
-        // Handle the previous object format if needed
-        for (const [toolCallId, plotlyJson] of Object.entries(responseData.visualizations)) {
+          
+          return {
+            type: viz.type || 'bar',
+            figure: figureData,
+            description: viz.description || 'Visualization',
+            reason: viz.reason || 'This chart helps visualize your data.'
+          };
+        });
+        
+        console.log(`Processed ${visualizations.length} array-format visualizations`);
+      } 
+      // Process object format visualizations
+      else if (typeof responseData.visualizations === 'object') {
+        visualizations = Object.entries(responseData.visualizations).map(([id, vizData]: [string, any]) => {
+          let figureData;
           try {
-            const plotData = typeof plotlyJson === 'string' ? JSON.parse(plotlyJson) : plotlyJson;
-            
-            // Simple heuristic to guess visualization type
-            let visType = 'bar';
-            if (plotData.data && plotData.data.length > 0) {
-              const firstTrace = plotData.data[0];
-              if (firstTrace.type === 'pie') {
-                visType = 'pie';
-              } else if (firstTrace.type === 'scatter' && firstTrace.mode?.includes('lines')) {
-                visType = 'line';
-              } else if (firstTrace.type === 'scatter' && firstTrace.fill === 'tozeroy') {
-                visType = 'area';
-              } else if (firstTrace.type === 'scatter' && firstTrace.mode?.includes('markers')) {
-                visType = 'scatter';
-              }
-            }
-            
-            visualizations.push({
-              type: visType,
-              figure: plotData,
-              description: `${visType.charAt(0).toUpperCase() + visType.slice(1)} Visualization`,
-              reason: `This ${visType} chart helps visualize your data.`
-            });
+            figureData = typeof vizData === 'string' ? JSON.parse(vizData) : vizData;
           } catch (e) {
             console.error("Error parsing visualization JSON:", e);
+            figureData = { data: [], layout: {} }; // Provide default empty figure
+          }
+          
+          // Try to determine visualization type
+          let vizType = 'bar';
+          if (figureData.data && figureData.data.length > 0) {
+            const firstTrace = figureData.data[0];
+            if (firstTrace.type === 'pie') {
+              vizType = 'pie';
+            } else if (firstTrace.type === 'scatter' && firstTrace.mode?.includes('lines')) {
+              vizType = 'line';
+            } else if (firstTrace.type === 'scatter' && firstTrace.mode?.includes('markers')) {
+              vizType = 'scatter';
+            }
+          }
+          
+          return {
+            type: vizType,
+            figure: figureData,
+            description: `Visualization ${id}`,
+            reason: `This chart helps visualize your data.`
+          };
+        });
+        
+        console.log(`Processed ${visualizations.length} object-format visualizations`);
+      }
+      
+      // Look for visualizations in each message in history
+      if (responseData.history && (!visualizations || visualizations.length === 0)) {
+        for (const message of responseData.history) {
+          if (message.role === 'assistant' && message.visualization) {
+            try {
+              const vizData = typeof message.visualization === 'string' 
+                ? JSON.parse(message.visualization) 
+                : message.visualization;
+              
+              // Skip if no data
+              if (!vizData || (Array.isArray(vizData.data) && vizData.data.length === 0)) {
+                continue;
+              }
+              
+              visualizations.push({
+                type: 'bar', // Default type
+                figure: vizData,
+                description: 'Visualization from chat history',
+                reason: 'This chart was generated during the conversation.'
+              });
+              
+              console.log("Found visualization in chat history");
+            } catch (e) {
+              console.error("Error parsing visualization from chat history:", e);
+            }
           }
         }
+      }
+    }
+    
+    // In case we have a visualization in RESULT as JSON string, try to extract it
+    if (responseData.RESULT && visualizations.length === 0) {
+      try {
+        const matches = responseData.RESULT.match(/```json\n([\s\S]*?)\n```/);
+        if (matches && matches[1]) {
+          const jsonStr = matches[1].trim();
+          const vizData = JSON.parse(jsonStr);
+          
+          if (vizData && vizData.data) {
+            visualizations.push({
+              type: 'bar', // Default type
+              figure: vizData,
+              description: 'Extracted Visualization',
+              reason: 'This chart was extracted from the response.'
+            });
+            console.log("Extracted visualization from RESULT");
+          }
+        }
+      } catch (e) {
+        console.error("Error extracting visualization from RESULT:", e);
       }
     }
     

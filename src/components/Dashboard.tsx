@@ -24,25 +24,41 @@ const Dashboard = ({
   const [showDashboard, setShowDashboard] = useState(false);
   
   useEffect(() => {
-    if ((data && data.length > 0 && !isLoading) || (visualizations && visualizations.length > 0)) {
+    // Show dashboard if we have data or visualizations
+    const hasData = data && data.length > 0;
+    const hasVisualizations = visualizations && visualizations.length > 0;
+    
+    if ((hasData || hasVisualizations) && !isLoading) {
       setShowDashboard(true);
     }
   }, [data, isLoading, visualizations]);
   
   useEffect(() => {
-    // For debugging
+    // For debugging visualizations
+    console.log('Dashboard visualizations state:', {
+      count: visualizations?.length || 0,
+      isArray: Array.isArray(visualizations),
+      isEmpty: !visualizations || visualizations.length === 0
+    });
+    
     if (visualizations && visualizations.length > 0) {
       console.log('Dashboard received visualizations:', visualizations.length);
       visualizations.forEach((viz, idx) => {
-        console.log(`Visualization ${idx+1} type:`, viz.type);
-        console.log(`Visualization ${idx+1} has figure:`, !!viz.figure);
+        console.log(`Visualization ${idx+1}:`, {
+          type: viz.type,
+          hasFigure: !!viz.figure,
+          description: viz.description
+        });
         
         // Check that the figure has correct properties
         if (viz.figure) {
           try {
             const figData = typeof viz.figure === 'string' ? JSON.parse(viz.figure) : viz.figure;
-            console.log(`Visualization ${idx+1} has data:`, !!figData.data);
-            console.log(`Visualization ${idx+1} has layout:`, !!figData.layout);
+            console.log(`Visualization ${idx+1} figure:`, {
+              hasData: !!figData.data && Array.isArray(figData.data),
+              dataLength: figData.data?.length || 0,
+              hasLayout: !!figData.layout
+            });
           } catch (e) {
             console.error(`Error parsing visualization ${idx+1} figure:`, e);
           }
@@ -110,15 +126,18 @@ const Dashboard = ({
           {visualizations && visualizations.length > 0 ? (
             // Display Plotly visualizations with flexible layout
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {visualizations.map((viz, index) => (
-                <PlotlyVisualization 
-                  key={`viz-${index}`} 
-                  title={viz.description || viz.type.charAt(0).toUpperCase() + viz.type.slice(1) + ' Chart'} 
-                  description={viz.reason || 'Generated visualization'} 
-                  figure={viz.figure} 
-                  type={viz.type} 
-                />
-              ))}
+              {visualizations.map((viz, index) => {
+                console.log(`Rendering visualization ${index}:`, viz.type);
+                return (
+                  <PlotlyVisualization 
+                    key={`viz-${index}`} 
+                    title={viz.description || `${viz.type.charAt(0).toUpperCase() + viz.type.slice(1)} Chart`} 
+                    description={viz.reason || 'Generated visualization'} 
+                    figure={viz.figure} 
+                    type={viz.type || 'bar'} 
+                  />
+                );
+              })}
             </div>
           ) : data && data.length > 0 ? (
             // Fallback to recharts visualizations if Plotly data not available
