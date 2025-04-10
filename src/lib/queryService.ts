@@ -21,8 +21,7 @@ export interface QueryResult {
   totalToolCalls?: number;
 }
 
-// Use relative URL instead of hardcoded localhost
-const API_BASE_URL = '/api';
+const API_BASE_URL = 'http://localhost:5002';
 
 export async function processQuery(query: string): Promise<QueryResult> {
   console.log("Processing query:", query);
@@ -32,22 +31,16 @@ export async function processQuery(query: string): Promise<QueryResult> {
     const response = await fetch(`${API_BASE_URL}/query`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: JSON.stringify({
-        question: query,
+      body: new URLSearchParams({
+        'query': query,
       }),
     });
     
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Error response from backend:", errorText);
-      try {
-        const errorData = JSON.parse(errorText);
-        throw new Error(errorData.error || 'Error processing query');
-      } catch (parseError) {
-        throw new Error(`Error status ${response.status}: ${errorText || 'Unknown error'}`);
-      }
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error processing query');
     }
     
     const responseData = await response.json();
