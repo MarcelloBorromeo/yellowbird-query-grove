@@ -23,6 +23,9 @@ const Index = () => {
   const [isSharedView, setIsSharedView] = useState(false);
   const [visualizations, setVisualizations] = useState<QueryResult['visualizations']>([]);
   const [searchParams] = useSearchParams();
+  const [toolCalls, setToolCalls] = useState<QueryResult['toolCalls']>([]);
+  const [currentToolCallIndex, setCurrentToolCallIndex] = useState<number>(0);
+  const [totalToolCalls, setTotalToolCalls] = useState<number>(0);
   
   // Check if we're viewing a shared dashboard or chart
   useEffect(() => {
@@ -54,13 +57,16 @@ const Index = () => {
       
       setUserQuery(sampleQuery);
       
-      // Use the real query service instead of mock data
+      // Use the real query service
       const result = await processQuery(sampleQuery);
       
       setSqlQuery(result.sql);
       setDashboardData(result.data);
       setResponse(result.explanation);
       setVisualizations(result.visualizations);
+      setToolCalls(result.toolCalls);
+      setCurrentToolCallIndex(result.currentToolCallIndex || 0);
+      setTotalToolCalls(result.totalToolCalls || 0);
       
       toast.success('Dashboard loaded successfully');
     } catch (error) {
@@ -78,6 +84,9 @@ const Index = () => {
     setSqlQuery(null);
     setHasError(false);
     setRetryCount(0);
+    setToolCalls([]);
+    setCurrentToolCallIndex(0);
+    setTotalToolCalls(0);
     
     if (!isFollowUp) {
       setDashboardData(null);
@@ -90,14 +99,21 @@ const Index = () => {
     }
     
     try {
-      // Use the real query service
+      // Use the query service to process the query
       const result = await processQuery(query);
       
       setSqlQuery(result.sql);
       setVisualizations(result.visualizations);
       
-      if (result.data && result.data.length > 0) {
-        setDashboardData(result.data);
+      if (result.toolCalls && result.toolCalls.length > 0) {
+        setToolCalls(result.toolCalls);
+        setCurrentToolCallIndex(result.currentToolCallIndex || 0);
+        setTotalToolCalls(result.toolCalls.length);
+      }
+      
+      // If we have data or visualization, display the results
+      if ((result.data && result.data.length > 0) || result.visualizations.length > 0) {
+        setDashboardData(result.data.length > 0 ? result.data : []);
         setResponse(result.explanation);
         toast.success(isFollowUp ? "Follow-up query processed" : "Query processed successfully");
       } else {
@@ -149,6 +165,10 @@ const Index = () => {
     handleSubmitQuery(suggestion);
   };
   
+  const handleToolCallNavigate = (index: number) => {
+    setCurrentToolCallIndex(index);
+  };
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50/70 via-white to-yellow-50/50">
       <Header />
@@ -194,7 +214,11 @@ const Index = () => {
               retryCount={retryCount}
               explanation={response}
               visualizations={visualizations}
+              toolCalls={toolCalls}
+              currentToolCallIndex={currentToolCallIndex}
+              totalToolCalls={totalToolCalls}
               onRunModifiedSql={handleRunModifiedSql}
+              onToolCallNavigate={handleToolCallNavigate}
             />
             <ResponseContainer
               response={response}

@@ -1,4 +1,4 @@
-import { generateMockData, generateMockSQL } from './mockData';
+
 import { DataPoint } from './mockData';
 
 export interface QueryResult {
@@ -11,6 +11,14 @@ export interface QueryResult {
     description: string;
     reason: string;
   }[];
+  toolCalls?: {
+    id: string;
+    name: string;
+    arguments: Record<string, any>;
+    output: string;
+  }[];
+  currentToolCallIndex?: number;
+  totalToolCalls?: number;
 }
 
 const API_BASE_URL = 'http://localhost:5002';
@@ -19,66 +27,116 @@ export async function processQuery(query: string): Promise<QueryResult> {
   console.log("Processing query:", query);
   
   try {
-    // Check if we should use the backend API or fallback to mock data
-    const useBackend = process.env.NODE_ENV !== 'test';
+    // Use the backend API
+    const response = await fetch(`${API_BASE_URL}/query`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        'query': query,
+      }),
+    });
     
-    if (useBackend) {
-      // Use real backend API
-      const response = await fetch(`${API_BASE_URL}/api/query`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ question: query }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error processing query');
-      }
-      
-      const data = await response.json();
-      console.log("Response from backend:", data);
-      
-      // Extract mock data for backward compatibility
-      const mockData = await generateMockData(query);
-      
-      return {
-        data: mockData, // Keep mock data for backward compatibility
-        sql: data.final_query,
-        explanation: data.RESULT,
-        visualizations: data.visualizations || []
-      };
-    } else {
-      // Fallback to mock data
-      return useMockData(query);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error processing query');
     }
+    
+    const responseData = await response.json();
+    console.log("Response from backend:", responseData);
+    
+    // Extract tool calls from the response history
+    const toolCalls: QueryResult['toolCalls'] = [];
+    const visualizations: QueryResult['visualizations'] = [];
+    
+    // Process history to extract tool calls and outputs
+    if (responseData.history) {
+      for (const message of responseData.history) {
+        if (message.role === 'assistant' && message.tool_calls && message.tool_calls.length > 0) {
+          message.tool_calls.forEach((toolCall: any, index: number) => {
+            const matchingOutput = message.tool_outputs?.find((output: any) => 
+              output.tool_call_id === toolCall.id
+            );
+            
+            if (toolCall.function) {
+              let parsedArgs = {};
+              try {
+                parsedArgs = JSON.parse(toolCall.function.arguments);
+              } catch (e) {
+                console.error("Error parsing tool call arguments:", e);
+              }
+              
+              toolCalls.push({
+                id: toolCall.id,
+                name: toolCall.function.name,
+                arguments: parsedArgs,
+                output: matchingOutput?.content || ''
+              });
+            }
+          });
+        }
+      }
+    }
+    
+    // Process visualizations
+    if (responseData.visualizations) {
+      for (const [toolCallId, plotlyJson] of Object.entries(responseData.visualizations)) {
+        try {
+          const plotData = JSON.parse(plotlyJson as string);
+          
+          // Simple heuristic to guess visualization type
+          let visType = 'bar';
+          if (plotData.data && plotData.data.length > 0) {
+            const firstTrace = plotData.data[0];
+            if (firstTrace.type === 'pie') {
+              visType = 'pie';
+            } else if (firstTrace.type === 'scatter' && firstTrace.mode?.includes('lines')) {
+              visType = 'line';
+            } else if (firstTrace.type === 'scatter' && firstTrace.fill === 'tozeroy') {
+              visType = 'area';
+            } else if (firstTrace.type === 'scatter' && firstTrace.mode?.includes('markers')) {
+              visType = 'scatter';
+            }
+          }
+          
+          visualizations.push({
+            type: visType,
+            figure: plotData,
+            description: `${visType.charAt(0).toUpperCase() + visType.slice(1)} Visualization`,
+            reason: `This ${visType} chart helps visualize your data.`
+          });
+        } catch (e) {
+          console.error("Error parsing visualization JSON:", e);
+        }
+      }
+    }
+    
+    // Extract explanation from the last assistant message
+    let explanation = '';
+    if (responseData.history) {
+      const assistantMessages = responseData.history.filter((msg: any) => msg.role === 'assistant');
+      if (assistantMessages.length > 0) {
+        explanation = assistantMessages[assistantMessages.length - 1].content || '';
+      }
+    }
+    
+    // Create a simplified mock data structure for backward compatibility
+    const mockData: DataPoint[] = [];
+    
+    return {
+      data: mockData, // This will be empty but maintains API compatibility
+      sql: toolCalls.length > 0 ? JSON.stringify(toolCalls[0].arguments, null, 2) : '',
+      explanation,
+      visualizations,
+      toolCalls,
+      currentToolCallIndex: toolCalls.length > 0 ? 0 : undefined,
+      totalToolCalls: toolCalls.length,
+    };
   } catch (error) {
     console.error("Error in processing query:", error);
-    
-    // Fallback to mock data if the backend fails
-    return useMockData(query);
+    throw createUserFriendlyError(error);
   }
-}
-
-async function useMockData(query: string): Promise<QueryResult> {
-  // Use mock data generator instead of the backend
-  const mockData = await generateMockData(query);
-  const mockSQL = await generateMockSQL(query);
-  
-  // Generate mock visualization data based on query
-  const visualizationType = determineVisualizationType(query);
-  const mockVisualizations = generateMockVisualizations(mockData, visualizationType);
-  
-  // Generate explanation based on the query
-  const explanation = generateExplanation(query, mockData);
-  
-  return {
-    data: mockData,
-    sql: mockSQL.sql,
-    explanation,
-    visualizations: mockVisualizations
-  };
 }
 
 function createUserFriendlyError(error: unknown): Error {
@@ -90,187 +148,4 @@ function createUserFriendlyError(error: unknown): Error {
   }
   
   return new Error(`There was an error processing your query: ${errorMessage}`);
-}
-
-function determineVisualizationType(query: string): string[] {
-  const queryLower = query.toLowerCase();
-  
-  if (queryLower.includes('distribution') || queryLower.includes('frequency')) {
-    return ['pie', 'bar'];
-  } else if (queryLower.includes('trend') || queryLower.includes('over time') || queryLower.includes('monthly') || queryLower.includes('yearly')) {
-    return ['line', 'area'];
-  } else if (queryLower.includes('compare') || queryLower.includes('comparison')) {
-    return ['bar', 'line'];
-  } else if (queryLower.includes('correlation') || queryLower.includes('relationship')) {
-    return ['scatter', 'bar'];
-  } else {
-    // Default chart types
-    return ['bar', 'pie'];
-  }
-}
-
-function generateExplanation(query: string, data: DataPoint[]): string {
-  const queryLower = query.toLowerCase();
-  
-  if (data.length === 0) {
-    return "No data was found for your query.";
-  }
-  
-  // Find the highest value in the data
-  const highestPoint = data.reduce((max, point) => 
-    point.value > max.value ? point : max, data[0]);
-  
-  // Find the lowest value in the data
-  const lowestPoint = data.reduce((min, point) => 
-    point.value < min.value ? point : min, data[0]);
-  
-  // Calculate average
-  const average = data.reduce((sum, point) => sum + point.value, 0) / data.length;
-  
-  if (queryLower.includes('monthly') || queryLower.includes('month')) {
-    return `Analysis of monthly data shows that ${highestPoint.name} had the highest value at ${highestPoint.value}, while ${lowestPoint.name} had the lowest at ${lowestPoint.value}. The average across all months is ${average.toFixed(2)}.`;
-  } else if (queryLower.includes('country') || queryLower.includes('countries')) {
-    return `Comparing data across countries shows that ${highestPoint.name} leads with ${highestPoint.value}, while ${lowestPoint.name} has the lowest value at ${lowestPoint.value}. The average across all countries is ${average.toFixed(2)}.`;
-  } else if (queryLower.includes('category') || queryLower.includes('product')) {
-    return `Product category analysis indicates that ${highestPoint.name} is the top performer with a value of ${highestPoint.value}, while ${lowestPoint.name} has the lowest performance at ${lowestPoint.value}. The average performance across categories is ${average.toFixed(2)}.`;
-  } else if (queryLower.includes('feature') || queryLower.includes('engagement')) {
-    return `Feature engagement metrics show that ${highestPoint.name} has the highest usage at ${highestPoint.value}%, while ${lowestPoint.name} is used least at ${lowestPoint.value}%. The average engagement rate is ${average.toFixed(2)}%.`;
-  } else {
-    return `Analysis of your data shows a range from ${lowestPoint.value} (${lowestPoint.name}) to ${highestPoint.value} (${highestPoint.name}), with an average of ${average.toFixed(2)}.`;
-  }
-}
-
-function generateMockVisualizations(data: DataPoint[], types: string[]): QueryResult['visualizations'] {
-  return types.map((type, index) => {
-    // Create Plotly figure based on visualization type
-    const figure = createPlotlyFigure(data, type, index);
-    
-    return {
-      type,
-      figure,
-      description: getVisualizationDescription(type, data),
-      reason: getVisualizationReason(type, data)
-    };
-  });
-}
-
-function getVisualizationDescription(type: string, data: DataPoint[]): string {
-  switch (type) {
-    case 'bar':
-      return `Bar Chart of ${data[0]?.name.includes('Group') ? 'Values' : data[0]?.name.split(' ')[0]} Distribution`;
-    case 'line':
-      return `Line Chart Showing ${data[0]?.name.includes('Jan') ? 'Monthly' : ''} Trends`;
-    case 'pie':
-      return `Pie Chart Showing Proportion by ${data[0]?.name.includes('Group') ? 'Group' : 'Category'}`;
-    case 'area':
-      return `Area Chart Showing ${data[0]?.name.includes('Jan') ? 'Monthly' : ''} Cumulative Values`;
-    case 'scatter':
-      return 'Scatter Plot Showing Data Distribution';
-    default:
-      return `${type.charAt(0).toUpperCase() + type.slice(1)} Visualization`;
-  }
-}
-
-function getVisualizationReason(type: string, data: DataPoint[]): string {
-  switch (type) {
-    case 'bar':
-      return 'This bar chart helps compare values across different categories.';
-    case 'line':
-      return 'This line chart shows the trend over time, helping identify patterns.';
-    case 'pie':
-      return 'This pie chart shows the proportion of each category relative to the whole.';
-    case 'area':
-      return 'This area chart highlights cumulative values and shows the overall volume.';
-    case 'scatter':
-      return 'This scatter plot helps identify correlations and outliers in the data.';
-    default:
-      return `This ${type} visualization provides insights into your data.`;
-  }
-}
-
-function createPlotlyFigure(data: DataPoint[], type: string, colorIndex: number = 0): any {
-  const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#8B5CF6', '#06B6D4'];
-  const color = colors[colorIndex % colors.length];
-  
-  // Structure for Plotly figure
-  let figure: any = {
-    data: [],
-    layout: {
-      margin: { l: 50, r: 20, t: 30, b: 50 },
-      font: { family: 'Inter, system-ui, sans-serif', size: 12 },
-      paper_bgcolor: 'rgba(0,0,0,0)',
-      plot_bgcolor: 'rgba(0,0,0,0)',
-      xaxis: { gridcolor: 'rgba(0,0,0,0.1)', zerolinecolor: 'rgba(0,0,0,0.2)' },
-      yaxis: { gridcolor: 'rgba(0,0,0,0.1)', zerolinecolor: 'rgba(0,0,0,0.2)' }
-    }
-  };
-  
-  switch (type) {
-    case 'bar':
-      figure.data.push({
-        type: 'bar',
-        x: data.map(d => d.name),
-        y: data.map(d => d.value),
-        marker: { color }
-      });
-      break;
-      
-    case 'line':
-      figure.data.push({
-        type: 'scatter',
-        mode: 'lines+markers',
-        x: data.map(d => d.name),
-        y: data.map(d => d.value),
-        line: { color, width: 2 },
-        marker: { color, size: 8 }
-      });
-      break;
-      
-    case 'pie':
-      figure.data.push({
-        type: 'pie',
-        labels: data.map(d => d.name),
-        values: data.map(d => d.value),
-        hole: 0.4,
-        marker: { colors: data.map((_, i) => colors[i % colors.length]) }
-      });
-      figure.layout.legend = { orientation: 'h', y: -0.2 };
-      break;
-      
-    case 'area':
-      figure.data.push({
-        type: 'scatter',
-        mode: 'lines',
-        x: data.map(d => d.name),
-        y: data.map(d => d.value),
-        fill: 'tozeroy',
-        line: { color, width: 2 },
-        fillcolor: color + '30' // Add transparency
-      });
-      break;
-      
-    case 'scatter':
-      // For scatter plots, generate some random x values since we only have name and value
-      const xValues = data.map((_, i) => Math.random() * 10 + i);
-      figure.data.push({
-        type: 'scatter',
-        mode: 'markers',
-        x: xValues,
-        y: data.map(d => d.value),
-        text: data.map(d => d.name),
-        marker: { color, size: 10 }
-      });
-      break;
-      
-    default:
-      // Default to bar chart
-      figure.data.push({
-        type: 'bar',
-        x: data.map(d => d.name),
-        y: data.map(d => d.value),
-        marker: { color }
-      });
-  }
-  
-  return figure;
 }
