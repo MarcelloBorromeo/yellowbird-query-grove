@@ -103,7 +103,12 @@ const Index = () => {
       const result = await processQuery(query);
       
       setSqlQuery(result.sql);
-      setVisualizations(result.visualizations);
+      
+      // Always update visualizations if they exist
+      if (result.visualizations && result.visualizations.length > 0) {
+        console.log(`Setting ${result.visualizations.length} visualizations from result`);
+        setVisualizations(result.visualizations);
+      }
       
       if (result.toolCalls && result.toolCalls.length > 0) {
         setToolCalls(result.toolCalls);
@@ -112,7 +117,7 @@ const Index = () => {
       }
       
       // If we have data or visualization, display the results
-      if ((result.data && result.data.length > 0) || result.visualizations.length > 0) {
+      if ((result.data && result.data.length > 0) || (result.visualizations && result.visualizations.length > 0)) {
         setDashboardData(result.data.length > 0 ? result.data : []);
         setResponse(result.explanation);
         toast.success(isFollowUp ? "Follow-up query processed" : "Query processed successfully");

@@ -101,7 +101,7 @@ export async function processQuery(query: string): Promise<QueryResult> {
             description: viz.description || 'Visualization',
             reason: viz.reason || 'This chart helps visualize your data.'
           };
-        });
+        }).filter((viz: any) => viz && viz.figure && viz.figure.data); // Filter out invalid visualizations
         
         console.log(`Processed ${visualizations.length} array-format visualizations`);
       } 
@@ -135,61 +135,39 @@ export async function processQuery(query: string): Promise<QueryResult> {
             description: `Visualization ${id}`,
             reason: `This chart helps visualize your data.`
           };
-        });
+        }).filter((viz: any) => viz && viz.figure && viz.figure.data); // Filter out invalid visualizations
         
         console.log(`Processed ${visualizations.length} object-format visualizations`);
       }
-      
-      // Look for visualizations in each message in history
-      if (responseData.history && (!visualizations || visualizations.length === 0)) {
-        for (const message of responseData.history) {
-          if (message.role === 'assistant' && message.visualization) {
-            try {
-              const vizData = typeof message.visualization === 'string' 
-                ? JSON.parse(message.visualization) 
-                : message.visualization;
-              
-              // Skip if no data
-              if (!vizData || (Array.isArray(vizData.data) && vizData.data.length === 0)) {
-                continue;
-              }
-              
-              visualizations.push({
-                type: 'bar', // Default type
-                figure: vizData,
-                description: 'Visualization from chat history',
-                reason: 'This chart was generated during the conversation.'
-              });
-              
-              console.log("Found visualization in chat history");
-            } catch (e) {
-              console.error("Error parsing visualization from chat history:", e);
-            }
-          }
-        }
-      }
     }
     
-    // In case we have a visualization in RESULT as JSON string, try to extract it
-    if (responseData.RESULT && visualizations.length === 0) {
+    // If the user asks for visualizations but none are returned, 
+    // try to use the test visualization endpoint
+    if (
+      visualizations.length === 0 && 
+      (query.toLowerCase().includes('chart') || 
+       query.toLowerCase().includes('graph') || 
+       query.toLowerCase().includes('plot') || 
+       query.toLowerCase().includes('visual'))
+    ) {
       try {
-        const matches = responseData.RESULT.match(/```json\n([\s\S]*?)\n```/);
-        if (matches && matches[1]) {
-          const jsonStr = matches[1].trim();
-          const vizData = JSON.parse(jsonStr);
-          
-          if (vizData && vizData.data) {
-            visualizations.push({
-              type: 'bar', // Default type
-              figure: vizData,
-              description: 'Extracted Visualization',
-              reason: 'This chart was extracted from the response.'
-            });
-            console.log("Extracted visualization from RESULT");
+        console.log("No visualizations found but user requested one, trying test visualization endpoint");
+        const testVizResponse = await fetch(`${API_BASE_URL}/api/test-visualization`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+        
+        if (testVizResponse.ok) {
+          const testVizData = await testVizResponse.json();
+          if (testVizData.visualizations && testVizData.visualizations.length > 0) {
+            console.log("Retrieved test visualization:", testVizData.visualizations);
+            visualizations = testVizData.visualizations;
           }
         }
       } catch (e) {
-        console.error("Error extracting visualization from RESULT:", e);
+        console.error("Error fetching test visualization:", e);
       }
     }
     
@@ -210,8 +188,38 @@ export async function processQuery(query: string): Promise<QueryResult> {
     // Create a simplified mock data structure for backward compatibility
     const mockData: DataPoint[] = [];
     
+    // If we have visualization data but no real data, create some mock data
+    if (visualizations.length > 0 && mockData.length === 0) {
+      try {
+        const firstViz = visualizations[0];
+        if (firstViz.figure && firstViz.figure.data && firstViz.figure.data.length > 0) {
+          const firstTrace = firstViz.figure.data[0];
+          
+          // Try to extract data from the visualization
+          if (firstTrace.x && firstTrace.y) {
+            for (let i = 0; i < Math.min(firstTrace.x.length, firstTrace.y.length); i++) {
+              mockData.push({
+                name: firstTrace.x[i].toString(),
+                value: parseFloat(firstTrace.y[i])
+              });
+            }
+          } else if (firstTrace.labels && firstTrace.values) {
+            // For pie charts
+            for (let i = 0; i < Math.min(firstTrace.labels.length, firstTrace.values.length); i++) {
+              mockData.push({
+                name: firstTrace.labels[i].toString(),
+                value: parseFloat(firstTrace.values[i])
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error creating mock data from visualization:", e);
+      }
+    }
+    
     return {
-      data: mockData, // This will be empty but maintains API compatibility
+      data: mockData,
       sql: toolCalls.length > 0 ? JSON.stringify(toolCalls[0].arguments, null, 2) : 
            responseData.final_query || '',
       explanation,
