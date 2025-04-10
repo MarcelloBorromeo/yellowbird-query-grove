@@ -560,6 +560,7 @@ def index():
 @app.route('/api/query', methods=['POST'])
 def handle_query():
     data = request.json
+    print("yo")
     user_query = data.get('question', '')
     session_id = data.get('session_id') or str(uuid.uuid4())
     print(f"Handling query for session_id: {session_id}")

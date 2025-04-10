@@ -1,4 +1,5 @@
 
+import { json } from 'stream/consumers';
 import { DataPoint } from './mockData';
 
 export interface QueryResult {
@@ -28,14 +29,18 @@ export async function processQuery(query: string): Promise<QueryResult> {
   
   try {
     // Use the backend API
-    const response = await fetch(`${API_BASE_URL}/query`, {
+    const response = await fetch(`${API_BASE_URL}/api/query`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
-      body: new URLSearchParams({
-        'query': query,
-      }),
+      // body: new URLSearchParams({
+      //   'question': query
+      // }),
+      body: JSON.stringify({
+        'question': query
+      })
     });
     
     if (!response.ok) {
