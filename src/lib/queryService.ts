@@ -32,16 +32,22 @@ export async function processQuery(query: string): Promise<QueryResult> {
     const response = await fetch(`${API_BASE_URL}/query`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/json',
       },
-      body: new URLSearchParams({
-        'query': query,
+      body: JSON.stringify({
+        question: query,
       }),
     });
     
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Error processing query');
+      const errorText = await response.text();
+      console.error("Error response from backend:", errorText);
+      try {
+        const errorData = JSON.parse(errorText);
+        throw new Error(errorData.error || 'Error processing query');
+      } catch (parseError) {
+        throw new Error(`Error status ${response.status}: ${errorText || 'Unknown error'}`);
+      }
     }
     
     const responseData = await response.json();
