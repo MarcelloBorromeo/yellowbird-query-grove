@@ -30,10 +30,17 @@ const Dashboard = ({
     
     if ((hasData || hasVisualizations) && !isLoading) {
       setShowDashboard(true);
+      console.log("Dashboard showing with visualizations:", visualizations?.length || 0);
     } else {
       console.log("Dashboard not showing: hasData=", hasData, "hasVisualizations=", hasVisualizations, "isLoading=", isLoading);
+      
+      // Force dashboard to show with test data if we have query but no data/visualizations
+      if (query && !isLoading && !hasData && !hasVisualizations) {
+        console.log("Forcing dashboard to show with empty state for query:", query);
+        setShowDashboard(true);
+      }
     }
-  }, [data, isLoading, visualizations]);
+  }, [data, isLoading, visualizations, query]);
   
   useEffect(() => {
     // For debugging visualizations
@@ -74,6 +81,22 @@ const Dashboard = ({
     }
   }, [visualizations]);
 
+  // Return early with loading state
+  if (isLoading) {
+    return (
+      <div className="w-full mt-8 mb-20 animate-fade-in-up">
+        <div className="container px-4 mx-auto">
+          <div className="bg-card/40 backdrop-blur-sm border border-border rounded-xl p-6 pb-8">
+            <div className="flex justify-center items-center h-60">
+              <p className="text-muted-foreground">Loading visualizations...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If no dashboard and no showDashboard flag, don't render anything
   if (!showDashboard) return null;
 
   // Helper function to determine chart types based on query
