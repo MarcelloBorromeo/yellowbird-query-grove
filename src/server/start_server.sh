@@ -22,7 +22,11 @@ if [ $? -ne 0 ]; then
     $PYTHON -m pip install langgraph langchain langchain-openai langchain-community pandas plotly flask flask-cors
 fi
 
+# Initialize database tables first
+echo "Setting up database tables..."
+cd "$(dirname "$0")"
+$PYTHON -c "from seed_db import init_persistent_storage; init_persistent_storage()"
+
 # Start the Flask server
 echo "Starting Flask server on port 5002..."
-cd "$(dirname "$0")"
 $PYTHON app.py

@@ -76,6 +76,7 @@ def seed_database():
 
 def init_persistent_storage():
     """Creates required persistent storage tables if they don't exist."""
+    print("Initializing persistent storage tables...")
     try:
         # Assume viz storage uses the same DB as session storage for simplicity
         engine = create_engine(SESSION_DB_URI)
@@ -121,6 +122,9 @@ def init_persistent_storage():
 
     except Exception as e:
         print(f"Error initializing persistent storage tables: {e}")
+
 if __name__ == "__main__":
-    seed_database() 
+    # Initialize persistent storage first to ensure tables exist
     init_persistent_storage()
+    # Then seed the main database
+    seed_database()
