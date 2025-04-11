@@ -1,3 +1,4 @@
+
 import { DataPoint } from './mockData';
 
 export interface QueryResult {
@@ -18,7 +19,6 @@ export interface QueryResult {
   }[];
   currentToolCallIndex?: number;
   totalToolCalls?: number;
-  isMockData?: boolean; // Flag to indicate if this is mock data
 }
 
 const API_BASE_URL = 'http://localhost:5002';
@@ -144,110 +144,10 @@ function createVisualizationFromTable(tableData: { headers: string[], rows: stri
   }
 }
 
-// Function to generate mock data when the server is unavailable
-function generateMockData(query: string): QueryResult {
-  console.log("Generating mock data for query:", query);
-  
-  // Create some sample data points based on the query
-  const mockDataPoints: DataPoint[] = [
-    { name: 'Category A', value: 45 },
-    { name: 'Category B', value: 72 },
-    { name: 'Category C', value: 38 },
-    { name: 'Category D', value: 56 },
-    { name: 'Category E', value: 29 }
-  ];
-  
-  // Create a sample bar chart visualization
-  const barChartFigure = {
-    data: [
-      {
-        type: 'bar',
-        x: mockDataPoints.map(d => d.name),
-        y: mockDataPoints.map(d => d.value),
-        marker: { color: '#4C9AFF' }
-      }
-    ],
-    layout: {
-      title: 'Sample Data Visualization',
-      xaxis: { title: 'Categories' },
-      yaxis: { title: 'Values' }
-    }
-  };
-  
-  // Create a sample pie chart visualization
-  const pieChartFigure = {
-    data: [
-      {
-        type: 'pie',
-        labels: mockDataPoints.map(d => d.name),
-        values: mockDataPoints.map(d => d.value),
-        marker: {
-          colors: ['#4C9AFF', '#36B37E', '#FF5630', '#FFAB00', '#6554C0']
-        }
-      }
-    ],
-    layout: {
-      title: 'Distribution by Category'
-    }
-  };
-  
-  // Create mock visualizations
-  const mockVisualizations = [
-    {
-      type: 'bar',
-      figure: barChartFigure,
-      description: 'Sample Bar Chart',
-      reason: 'This is a mock visualization since the backend server is unavailable.'
-    },
-    {
-      type: 'pie',
-      figure: pieChartFigure,
-      description: 'Sample Pie Chart',
-      reason: 'This is a mock visualization since the backend server is unavailable.'
-    }
-  ];
-  
-  // Return mock data structure
-  return {
-    data: mockDataPoints,
-    sql: 'SELECT category, value FROM sample_data GROUP BY category',
-    explanation: `This is a simulated response since the backend server is not available. Your query was: "${query}"\n\nIn a normal operation, this would show real results from the database. To see actual results, please ensure the Flask backend server is running at ${API_BASE_URL}.`,
-    visualizations: mockVisualizations,
-    isMockData: true  // Flag to indicate this is mock data
-  };
-}
-
-// Check if the backend is available
-async function isBackendAvailable(): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
-    
-    const response = await fetch(`${API_BASE_URL}/api/test-visualization`, {
-      method: 'GET',
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-    return response.ok;
-  } catch (error) {
-    console.log("Backend availability check failed:", error);
-    return false;
-  }
-}
-
 export async function processQuery(query: string): Promise<QueryResult> {
   console.log("Processing query:", query);
   
   try {
-    // Check if the backend is available
-    const backendAvailable = await isBackendAvailable();
-    
-    if (!backendAvailable) {
-      console.log("Backend server unavailable, using mock data");
-      return generateMockData(query);
-    }
-    
     // Use the backend API
     const response = await fetch(`${API_BASE_URL}/api/query`, {
       method: 'POST',
@@ -438,13 +338,6 @@ export async function processQuery(query: string): Promise<QueryResult> {
     };
   } catch (error) {
     console.error("Error in processing query:", error);
-    
-    // Check if it's a connection error
-    if (error instanceof TypeError && (error.message.includes('Failed to fetch') || error.message.includes('NetworkError'))) {
-      console.log("Connection error detected, using mock data");
-      return generateMockData(query);
-    }
-    
     throw createUserFriendlyError(error);
   }
 }

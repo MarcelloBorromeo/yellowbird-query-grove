@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import ChartCard from './ChartCard';
 import PlotlyVisualization from './PlotlyVisualization';
-import { Download, Calendar, AlertTriangle } from 'lucide-react';
+import { Download, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { QueryResult } from '@/lib/queryService';
 
@@ -12,7 +12,6 @@ interface DashboardProps {
   query?: string;
   isSharedView?: boolean;
   visualizations?: QueryResult['visualizations'];
-  isMockData?: boolean;
 }
 
 const Dashboard = ({
@@ -20,8 +19,7 @@ const Dashboard = ({
   isLoading,
   query = '',
   isSharedView = false,
-  visualizations = [],
-  isMockData = false
+  visualizations = []
 }: DashboardProps) => {
   const [showDashboard, setShowDashboard] = useState(false);
   
@@ -142,16 +140,6 @@ const Dashboard = ({
               </button>
             </div>
           </div>
-          
-          {isMockData && (
-            <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md p-3 flex items-center">
-              <AlertTriangle className="h-5 w-5 mr-2 text-yellow-600" />
-              <div>
-                <p className="font-medium">Backend server unavailable</p>
-                <p className="text-sm">Showing mock visualizations. To see real data, ensure the Flask server is running at localhost:5002.</p>
-              </div>
-            </div>
-          )}
           
           {visualizations && visualizations.length > 0 ? (
             // Display Plotly visualizations with flexible layout
