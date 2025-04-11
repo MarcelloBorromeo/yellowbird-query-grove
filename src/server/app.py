@@ -1,4 +1,3 @@
-
 import os
 import json
 import uuid
@@ -15,6 +14,7 @@ import plotly.io as pio
 from sqlalchemy import create_engine, inspect, text
 from typing import Any
 from flask_cors import CORS
+import traceback
 
 # Load environment variables
 load_dotenv()
@@ -55,10 +55,18 @@ storage = SqliteStorage(table_name="agent_sessions", db_url=SESSION_DB_URI)
 # Optional: Automatically upgrade schema if needed (run once)
 storage.upgrade_schema()
 
-
-# --- Temporary Cache for Pending Visualizations ---
-# temp_viz_cache = {} # REMOVED - Persistence now happens directly in the tool
-# -----------------------------------------------
+# --- Helper function to ensure JSON serialization ---
+def ensure_json_serializable(obj):
+    """Recursively convert an object to be JSON serializable."""
+    if isinstance(obj, (str, int, float, bool, type(None))):
+        return obj
+    elif isinstance(obj, (list, tuple)):
+        return [ensure_json_serializable(i) for i in obj]
+    elif isinstance(obj, dict):
+        return {k: ensure_json_serializable(v) for k, v in obj.items()}
+    else:
+        # For all other types, convert to string
+        return str(obj)
 
 # --- Data Navigator Toolkit --- 
 class DataNavigatorTools(Toolkit):
@@ -337,6 +345,20 @@ class DataNavigatorTools(Toolkit):
             # If we have valid plot JSON and the tool call ID, save it to the DB
             if plot_json_to_save and tool_call_id:
                 try:
+                    # Ensure the visualization is properly formatted before saving
+                    if isinstance(plot_json_to_save, str):
+                        # Try to parse it to validate it's proper JSON
+                        try:
+                            json.loads(plot_json_to_save)
+                        except Exception as json_parse_err:
+                            print(f"Warning: Plot JSON is not valid JSON: {json_parse_err}")
+                            # Try to fix it if possible
+                            try:
+                                plot_obj = json.loads(plot_json_to_save.replace("'", '"'))
+                                plot_json_to_save = json.dumps(plot_obj)
+                            except:
+                                print("Failed to fix invalid JSON, continuing anyway")
+                    
                     viz_engine = create_engine(self.session_db_uri)
                     with viz_engine.connect() as conn:
                         # Use the new table structure with tool_call_id
@@ -351,7 +373,23 @@ class DataNavigatorTools(Toolkit):
                         if conn.engine.dialect.supports_sane_rowcount_returning is False: 
                             conn.commit()
                         print(f"Successfully generated and saved plot to DB for tool call {tool_call_id}")
-                        return json.dumps({"status": "success", "message": "Visualization generated and saved."})
+                        
+                        # Return both success status AND the plot itself to improve transmission reliability
+                        try:
+                            plot_data = json.loads(plot_json_to_save)
+                            return json.dumps({
+                                "status": "success", 
+                                "message": "Visualization generated and saved.",
+                                "visualization": {
+                                    "type": plot_type,
+                                    "figure": plot_data,
+                                    "description": title,
+                                    "reason": f"Visualization of {y_axis} by {x_axis}"
+                                }
+                            })
+                        except:
+                            # If we can't parse the JSON, just return success message
+                            return json.dumps({"status": "success", "message": "Visualization generated and saved."})
                 except Exception as db_err:
                     print(f"Error saving visualization directly to DB: {db_err}")
                     return json.dumps({"error": f"Plot generated but failed to save to database: {db_err}"})
@@ -560,10 +598,10 @@ def index():
 @app.route('/api/query', methods=['POST'])
 def handle_query():
     data = request.json
-    print("yo")
+    print("Receiving query request")
     user_query = data.get('question', '')
     session_id = data.get('session_id') or str(uuid.uuid4())
-    print(f"Handling query for session_id: {session_id}")
+    print(f"Handling query for session_id: {session_id}, Query: {user_query}")
 
     if not user_query:
         return jsonify({"error": "No question provided"}), 400
@@ -571,175 +609,4 @@ def handle_query():
     try:
         agent = Agent(
             agent_id="data-navigator-agent",
-            model=OpenAIChat(id="gpt-4o-mini"),
-            storage=storage,
-            instructions=agent_instructions,
-            tools=[data_navigator_tools], # Pass the Toolkit instance
-            add_history_to_messages=True,
-            show_tool_calls=True,
-            debug_mode=False,
-            num_history_responses=15
-        )
-        # Set agent's context for this request
-        agent.session_id = session_id
-        agent.user_id = USER_ID 
-
-        # Run the agent - Tool calls (like plotting) now handle their own persistence using tool_call_id.
-        response = agent.run(
-            user_query,
-            user_id=USER_ID,
-            session_id=session_id,
-            stream=False
-        )
-
-        # Save agent state immediately after run
-        agent.write_to_storage()
-        print(f"Agent state saved for session {session_id} after run.")
-
-        # Prepare data for frontend using the helper function
-        all_messages = agent.memory.messages if agent.memory else []
-        frontend_history, visualizations_map_by_call_id = _prepare_frontend_data(all_messages, session_id)
-
-        # Format response in the expected structure
-        result = {
-            "RESULT": response.content if hasattr(response, 'content') else "Query processed",
-            "final_query": "Generated by Agno agent",
-            "visualizations": []
-        }
-
-        # Add visualizations if available
-        if visualizations_map_by_call_id:
-            for tool_call_id, viz_json in visualizations_map_by_call_id.items():
-                try:
-                    # Convert the JSON string to a Python object
-                    viz_obj = json.loads(viz_json)
-                    result["visualizations"].append({
-                        "type": "plotly",  # Default type for Agno visualizations
-                        "figure": viz_obj,
-                        "description": f"Visualization {tool_call_id}",
-                        "reason": "Generated by Agno agent"
-                    })
-                except Exception as e:
-                    print(f"Error processing visualization JSON: {e}")
-
-        return jsonify(result)
-
-    except Exception as e:
-        print(f"Error during agent run: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": f"An internal error occurred: {e}"}), 500
-
-@app.route('/api/load_session', methods=['POST'])
-def load_session():
-    data = request.json
-    session_id = data.get('session_id')
-    if not session_id:
-        print("Load Session Error: No session ID provided")
-        return jsonify({"error": "No session ID provided"}), 400
-        
-    print(f"Load Session Request: Attempting to load session_id: {session_id} for user_id: {USER_ID}")
-    agent = Agent(
-        agent_id="data-navigator-agent",
-        model=OpenAIChat(id="gpt-4o-mini"),
-        storage=storage,
-        instructions=agent_instructions,
-        tools=[data_navigator_tools], # Pass the Toolkit instance
-        add_history_to_messages=True,
-        show_tool_calls=True,
-        debug_mode=False,
-        num_history_responses=15
-    )
-    try:
-        # Set agent context
-        agent.session_id = session_id
-        agent.user_id = USER_ID
-
-        print(f"Load Session: Calling agent.read_from_storage() for session {session_id}")
-        loaded_session = agent.read_from_storage() 
-        
-        if loaded_session is None:
-            session_exists = storage.get_session(user_id=USER_ID, session_id=session_id) is not None
-            if not session_exists:
-                 print(f"Load Session Error: Session {session_id} not found in storage.")
-                 return jsonify({"error": "Session not found"}), 404
-            else:
-                 print(f"Load Session Warning: Session {session_id} found but agent.read_from_storage() failed.")
-                 return jsonify({"error": "Session found but could not be loaded"}), 500
-        else:
-             print(f"Load Session Success: Session {session_id} loaded.")
-             
-             # Prepare data for frontend using the helper function
-             all_messages = agent.memory.messages if agent.memory and hasattr(agent.memory, 'messages') else []
-             frontend_history, visualizations_map_by_call_id = _prepare_frontend_data(all_messages, session_id)
-             print(f"Load Session: Prepared history ({len(frontend_history)} items) and viz ({len(visualizations_map_by_call_id)} items).")
-
-             # Format response for compatibility with existing code
-             result = {
-                 "RESULT": "Session loaded successfully.",
-                 "final_query": "",
-                 "visualizations": []
-             }
-
-             # Add visualizations if available
-             if visualizations_map_by_call_id:
-                 for tool_call_id, viz_json in visualizations_map_by_call_id.items():
-                     try:
-                         viz_obj = json.loads(viz_json)
-                         result["visualizations"].append({
-                             "type": "plotly", 
-                             "figure": viz_obj,
-                             "description": f"Visualization {tool_call_id}",
-                             "reason": "Generated by Agno agent"
-                         })
-                     except Exception as e:
-                         print(f"Error processing visualization JSON: {e}")
-
-             return jsonify(result)
-             
-    except Exception as e:
-        print(f"Load Session Exception: Error loading session {session_id}: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": f"Internal error loading session: {e}"}), 500
-
-@app.route('/api/test-visualization', methods=['GET'])
-def test_visualization():
-    """Endpoint to get a test visualization for frontend testing"""
-    try:
-        print("Generating test visualization")
-        
-        # Create a simple test visualization
-        df = pd.DataFrame({
-            'Category': ['A', 'B', 'C', 'D'],
-            'Values': [25, 40, 30, 35]
-        })
-        
-        fig = px.bar(df, x='Category', y='Values', title='Test Visualization')
-        fig_json = json.loads(pio.to_json(fig))
-        
-        result = {
-            "RESULT": "This is a test visualization.",
-            "final_query": "SELECT * FROM test",
-            "visualizations": [{
-                "type": "plotly",
-                "figure": fig_json,
-                "description": "Test Bar Chart",
-                "reason": "Testing visualization rendering"
-            }]
-        }
-        
-        return jsonify(result)
-    
-    except Exception as e:
-        print(f"Error generating test visualization: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
-if __name__ == '__main__':
-    # Ensure .env file has OPENAI_API_KEY, FLASK_SECRET_KEY
-    # Optionally set DATA_DB_URI_* and SESSION_DB_URI (defaults are SQLite)
-    # Run seed_db.py once first if using the default SQLite data DB:
-    # python seed_db.py
-    app.run(debug=True, port=5002, host='0.0.0.0') 
+            model=OpenAIC
