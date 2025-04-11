@@ -1,241 +1,262 @@
 
-import { useState, useEffect } from 'react';
-import Header from '@/components/Header';
-import QueryInput from '@/components/QueryInput';
-import QueryProcess from '@/components/QueryProcess';
-import Dashboard from '@/components/Dashboard';
-import ResponseContainer from '@/components/ResponseContainer';
-import SuggestionChips from '@/components/SuggestionChips';
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useSearchParams } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
 import { processQuery, QueryResult } from '@/lib/queryService';
-import { DataPoint } from '@/lib/mockData';
+import { ChatMessageProps } from '@/components/ChatMessage';
+import ChatInterface from '@/components/ChatInterface';
 
 const Index = () => {
-  const [userQuery, setUserQuery] = useState('');
-  const [queryHistory, setQueryHistory] = useState<string[]>([]);
+  const [messages, setMessages] = useState<ChatMessageProps[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [sqlQuery, setSqlQuery] = useState<string | null>(null);
-  const [hasError, setHasError] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
-  const [dashboardData, setDashboardData] = useState<DataPoint[] | null>(null);
-  const [response, setResponse] = useState<string | null>(null);
-  const [isSharedView, setIsSharedView] = useState(false);
-  const [visualizations, setVisualizations] = useState<QueryResult['visualizations']>([]);
-  const [searchParams] = useSearchParams();
-  const [toolCalls, setToolCalls] = useState<QueryResult['toolCalls']>([]);
-  const [currentToolCallIndex, setCurrentToolCallIndex] = useState<number>(0);
-  const [totalToolCalls, setTotalToolCalls] = useState<number>(0);
-  
-  // Check if we're viewing a shared dashboard or chart
+  const [currentSessionId, setCurrentSessionId] = useState<string>('');
+  const [sessionList, setSessionList] = useState<{ id: string; query: string; timestamp: Date }[]>([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  // Initialize or load session
   useEffect(() => {
-    const sharedDashboardId = searchParams.get('dashboard');
+    // Check if there's a session ID in the URL
+    const sessionId = searchParams.get('session_id');
     
-    if (sharedDashboardId) {
-      setIsSharedView(true);
-      loadSharedDashboard(sharedDashboardId);
+    if (sessionId) {
+      setCurrentSessionId(sessionId);
+      loadSession(sessionId);
+    } else {
+      // Create a new session if none exists
+      createNewSession();
+    }
+    
+    // Load session list from localStorage
+    const savedSessions = localStorage.getItem('yellowbird_sessions');
+    if (savedSessions) {
+      try {
+        const parsedSessions = JSON.parse(savedSessions);
+        // Convert string timestamps back to Date objects
+        const sessionsWithDates = parsedSessions.map((s: any) => ({
+          ...s,
+          timestamp: new Date(s.timestamp)
+        }));
+        setSessionList(sessionsWithDates);
+      } catch (e) {
+        console.error('Error loading sessions:', e);
+      }
     }
   }, [searchParams]);
-  
-  const loadSharedDashboard = async (dashboardId: string) => {
-    setIsProcessing(true);
-    
-    try {
-      // In a real app, this would fetch from a database
-      // For now, we'll simulate loading a dashboard based on query type
-      
-      let sampleQuery = '';
-      if (dashboardId.includes('revenue')) {
-        sampleQuery = 'Show me revenue trends by product category';
-      } else if (dashboardId.includes('users')) {
-        sampleQuery = 'How many active users do we have by month?';
-      } else if (dashboardId.includes('conversion')) {
-        sampleQuery = 'What is our conversion rate by country?';
-      } else {
-        sampleQuery = 'Show me top performing metrics';
+
+  // Create a new chat session
+  const createNewSession = useCallback(() => {
+    const newSessionId = uuidv4();
+    setCurrentSessionId(newSessionId);
+    setMessages([
+      {
+        role: 'assistant',
+        content: 'I am a data analysis assistant designed to help you understand and visualize data by querying databases and generating visualizations. If you have any questions or need assistance with data-related tasks, feel free to ask!'
       }
+    ]);
+    
+    // Update URL with the new session ID
+    setSearchParams({ session_id: newSessionId });
+    
+    // Add to session list
+    const newSession = { 
+      id: newSessionId, 
+      query: 'New Chat', 
+      timestamp: new Date() 
+    };
+    
+    setSessionList(prev => {
+      const updated = [newSession, ...prev];
+      // Save to localStorage
+      localStorage.setItem('yellowbird_sessions', JSON.stringify(updated));
+      return updated;
+    });
+  }, [setSearchParams]);
+
+  // Load a specific session
+  const loadSession = async (sessionId: string) => {
+    // In a real app, this would fetch from a database
+    // For now, we'll try to load from localStorage
+    try {
+      const sessionData = localStorage.getItem(`yellowbird_session_${sessionId}`);
       
-      setUserQuery(sampleQuery);
-      
-      // Use the real query service
-      const result = await processQuery(sampleQuery);
-      
-      setSqlQuery(result.sql);
-      setDashboardData(result.data);
-      setResponse(result.explanation);
-      setVisualizations(result.visualizations);
-      setToolCalls(result.toolCalls);
-      setCurrentToolCallIndex(result.currentToolCallIndex || 0);
-      setTotalToolCalls(result.totalToolCalls || 0);
-      
-      toast.success('Dashboard loaded successfully');
-    } catch (error) {
-      console.error('Error loading dashboard:', error);
-      toast.error('Failed to load dashboard');
-      setHasError(true);
-    } finally {
-      setIsProcessing(false);
+      if (sessionData) {
+        setMessages(JSON.parse(sessionData));
+      } else {
+        // If no data for this session, initialize with welcome message
+        setMessages([
+          {
+            role: 'assistant',
+            content: 'I am a data analysis assistant designed to help you understand and visualize data by querying databases and generating visualizations. If you have any questions or need assistance with data-related tasks, feel free to ask!'
+          }
+        ]);
+        
+        // Save this initial state
+        localStorage.setItem(`yellowbird_session_${sessionId}`, JSON.stringify([
+          {
+            role: 'assistant',
+            content: 'I am a data analysis assistant designed to help you understand and visualize data by querying databases and generating visualizations. If you have any questions or need assistance with data-related tasks, feel free to ask!'
+          }
+        ]));
+      }
+    } catch (e) {
+      console.error('Error loading session:', e);
+      toast.error('Failed to load chat session');
     }
   };
-  
-  const handleSubmitQuery = async (query: string, isFollowUp: boolean = false) => {
-    setUserQuery(query);
-    setIsProcessing(true);
-    setSqlQuery(null);
-    setHasError(false);
-    setRetryCount(0);
-    setToolCalls([]);
-    setCurrentToolCallIndex(0);
-    setTotalToolCalls(0);
+
+  // Handle session selection
+  const handleSelectSession = (sessionId: string) => {
+    setCurrentSessionId(sessionId);
+    setSearchParams({ session_id: sessionId });
+    loadSession(sessionId);
+  };
+
+  // Handle query submission
+  const handleSubmitQuery = async (query: string, sessionId: string) => {
+    if (!query.trim() || isProcessing) return;
     
-    if (!isFollowUp) {
-      setDashboardData(null);
-      setResponse(null);
-      setVisualizations([]);
-      setQueryHistory([]);
-    } else {
-      // For follow-up queries, keep the history
-      setQueryHistory(prev => [...prev, userQuery]);
-    }
+    // Add user message
+    const userMessage: ChatMessageProps = {
+      role: 'user',
+      content: query
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    
+    // Add thinking message
+    const thinkingMessage: ChatMessageProps = {
+      role: 'assistant',
+      content: '',
+      isLoading: true
+    };
+    
+    setMessages(prev => [...prev, thinkingMessage]);
+    setIsProcessing(true);
     
     try {
-      // Use the query service to process the query
+      // Process the query
       const result = await processQuery(query);
       
-      setSqlQuery(result.sql);
-      setVisualizations(result.visualizations);
+      // Remove thinking message
+      setMessages(prev => prev.filter(msg => !msg.isLoading));
       
+      // Create messages from the result
+      const newMessages: ChatMessageProps[] = [];
+      
+      // Add assistant response
+      newMessages.push({
+        role: 'assistant',
+        content: result.explanation
+      });
+      
+      // Add tool calls if any
       if (result.toolCalls && result.toolCalls.length > 0) {
-        setToolCalls(result.toolCalls);
-        setCurrentToolCallIndex(result.currentToolCallIndex || 0);
-        setTotalToolCalls(result.toolCalls.length);
+        result.toolCalls.forEach((toolCall, index) => {
+          newMessages.push({
+            role: 'tool',
+            content: '',
+            toolCall: {
+              name: toolCall.name,
+              arguments: toolCall.arguments,
+            },
+            toolOutput: toolCall.output
+          });
+        });
       }
       
-      // If we have data or visualization, display the results
-      if ((result.data && result.data.length > 0) || result.visualizations.length > 0) {
-        setDashboardData(result.data.length > 0 ? result.data : []);
-        setResponse(result.explanation);
-        toast.success(isFollowUp ? "Follow-up query processed" : "Query processed successfully");
-      } else {
-        // Handle empty results
-        setDashboardData([]);
-        setResponse(result.explanation || "No data returned for this query.");
-        toast.info("Query processed, but no data was returned");
+      // Add visualization if available
+      if (result.visualizations && result.visualizations.length > 0) {
+        // Add visualization to the last message
+        const lastMessage = newMessages[newMessages.length - 1];
+        
+        result.visualizations.forEach((viz, index) => {
+          if (index === 0) {
+            // Add to the last message
+            newMessages[newMessages.length - 1] = {
+              ...lastMessage,
+              visualization: viz
+            };
+          } else {
+            // Add as a new message
+            newMessages.push({
+              role: 'assistant',
+              content: viz.description || 'Here is another visualization of the data:',
+              visualization: viz
+            });
+          }
+        });
       }
+      
+      // Update messages with new ones
+      setMessages(prev => {
+        const updatedMessages = [...prev.filter(msg => !msg.isLoading), ...newMessages];
+        
+        // Save to localStorage
+        localStorage.setItem(`yellowbird_session_${sessionId}`, JSON.stringify(updatedMessages));
+        
+        // Update session list with the first user query
+        setSessionList(prevList => {
+          const updatedList = prevList.map(session => 
+            session.id === sessionId
+              ? { ...session, query: query, timestamp: new Date() }
+              : session
+          );
+          
+          // If session not in list, add it
+          if (!updatedList.find(s => s.id === sessionId)) {
+            updatedList.unshift({ id: sessionId, query, timestamp: new Date() });
+          }
+          
+          // Sort by timestamp (newest first)
+          updatedList.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+          
+          // Save to localStorage
+          localStorage.setItem('yellowbird_sessions', JSON.stringify(updatedList));
+          
+          return updatedList;
+        });
+        
+        return updatedMessages;
+      });
+      
+      toast.success('Query processed successfully');
     } catch (error) {
-      console.error("Error processing query:", error);
-      setHasError(true);
-      toast.error("An error occurred while processing your query");
+      console.error('Error processing query:', error);
+      
+      // Remove thinking message
+      setMessages(prev => {
+        const updatedMessages = [
+          ...prev.filter(msg => !msg.isLoading),
+          {
+            role: 'assistant',
+            content: 'Sorry, I encountered an error while processing your query. Please try again.'
+          }
+        ];
+        
+        // Save to localStorage
+        localStorage.setItem(`yellowbird_session_${sessionId}`, JSON.stringify(updatedMessages));
+        
+        return updatedMessages;
+      });
+      
+      toast.error('Error processing your query');
     } finally {
       setIsProcessing(false);
     }
   };
-  
-  const handleRunModifiedSql = async (modifiedSql: string) => {
-    setIsProcessing(true);
-    setHasError(false);
-    
-    try {
-      // In a real app, we'd send this modified SQL to the backend
-      // For now, we'll just process the original query but show the new SQL
-      const result = await processQuery(userQuery);
-      
-      // Override the SQL with the user-edited version
-      setSqlQuery(modifiedSql);
-      
-      if (result.data && result.data.length > 0) {
-        setDashboardData(result.data);
-        setResponse(result.explanation);
-        toast.success("Modified SQL query processed");
-      } else {
-        setDashboardData([]);
-        setResponse("No data returned for this query.");
-        toast.info("Query processed, but no data was returned");
-      }
-    } catch (error) {
-      console.error("Error processing modified SQL:", error);
-      setHasError(true);
-      toast.error("An error occurred while processing your modified SQL");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-  
-  const handleSelectSuggestion = (suggestion: string) => {
-    handleSubmitQuery(suggestion);
-  };
-  
-  const handleToolCallNavigate = (index: number) => {
-    setCurrentToolCallIndex(index);
-  };
-  
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50/70 via-white to-yellow-50/50">
-      <Header />
-      
-      <main className="pt-20 pb-20 px-4 relative z-10">
-        <div className="max-w-screen-xl mx-auto">
-          {!isSharedView ? (
-            <div className="text-center mb-10">
-              <div className="inline-block mb-2 py-1 px-3 bg-yellowbird-50 text-yellowbird-800 rounded-full text-xs font-medium">
-                Data Analytics Assistant
-              </div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">YellowBird Data Navigator</h1>
-              <p className="text-gray-600 max-w-2xl mx-auto text-base">
-                Ask questions about your data in natural language. YellowBird will translate your query
-                into SQL, retrieve the data, and generate interactive visualizations.
-              </p>
-            </div>
-          ) : (
-            <div className="text-center mb-10">
-              <div className="inline-block mb-2 py-1 px-3 bg-yellowbird-50 text-yellowbird-800 rounded-full text-xs font-medium">
-                Shared Dashboard
-              </div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">YellowBird Shared Analysis</h1>
-              <p className="text-gray-600 max-w-2xl mx-auto text-base">
-                This is a shared data analysis dashboard. You can explore the visualizations or create your own query.
-              </p>
-            </div>
-          )}
-          
-          <div className="max-w-3xl mx-auto space-y-6">
-            <SuggestionChips onSelectSuggestion={handleSelectSuggestion} />
-            <QueryInput 
-              onSubmitQuery={handleSubmitQuery} 
-              isProcessing={isProcessing} 
-              previousQuery={userQuery}
-              queryHistory={queryHistory}
-            />
-            <QueryProcess 
-              userQuery={userQuery}
-              isProcessing={isProcessing}
-              sqlQuery={sqlQuery}
-              hasError={hasError}
-              retryCount={retryCount}
-              explanation={response}
-              visualizations={visualizations}
-              toolCalls={toolCalls}
-              currentToolCallIndex={currentToolCallIndex}
-              totalToolCalls={totalToolCalls}
-              onRunModifiedSql={handleRunModifiedSql}
-              onToolCallNavigate={handleToolCallNavigate}
-            />
-            <ResponseContainer
-              response={response}
-              isLoading={isProcessing && dashboardData === null}
-            />
-          </div>
-          
-          <Dashboard 
-            data={dashboardData}
-            isLoading={isProcessing}
-            query={userQuery}
-            isSharedView={isSharedView}
-            visualizations={visualizations}
-          />
-        </div>
-      </main>
-    </div>
+    <ChatInterface
+      onSubmitQuery={handleSubmitQuery}
+      messages={messages}
+      isProcessing={isProcessing}
+      currentSessionId={currentSessionId}
+      sessionList={sessionList}
+      onNewSession={createNewSession}
+      onSelectSession={handleSelectSession}
+    />
   );
 };
 
