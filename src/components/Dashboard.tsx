@@ -92,6 +92,21 @@ const Dashboard = ({
   // Helper function to determine chart types based on query
   const determineChartTypes = (query: string) => {
     const queryLower = query.toLowerCase();
+    
+    // Check for explicit chart type requests
+    if (queryLower.includes('scatter plot') || queryLower.includes('scatter chart')) {
+      return ['scatter', 'line'];
+    } else if (queryLower.includes('pie chart') || queryLower.includes('pie graph')) {
+      return ['pie', 'bar'];
+    } else if (queryLower.includes('bar chart') || queryLower.includes('bar graph')) {
+      return ['bar', 'line'];
+    } else if (queryLower.includes('line chart') || queryLower.includes('line graph')) {
+      return ['line', 'area'];
+    } else if (queryLower.includes('area chart') || queryLower.includes('area graph')) {
+      return ['area', 'line'];
+    }
+    
+    // Default checks based on query intent
     if (queryLower.includes('distribution') || queryLower.includes('frequency')) {
       return ['pie', 'bar'];
     } else if (queryLower.includes('trend') || queryLower.includes('over time') || queryLower.includes('monthly') || queryLower.includes('yearly')) {
@@ -107,6 +122,20 @@ const Dashboard = ({
   };
   
   const chartTypes = determineChartTypes(query);
+  
+  // Fix visualization type if we detect it doesn't match the query intent
+  const enhancedVisualizations = visualizations.map(viz => {
+    if (viz.type === 'bar' && query.toLowerCase().includes('scatter')) {
+      return {...viz, type: 'scatter'};
+    }
+    if (viz.type === 'bar' && query.toLowerCase().includes('pie')) {
+      return {...viz, type: 'pie'};
+    }
+    if (viz.type === 'bar' && query.toLowerCase().includes('line')) {
+      return {...viz, type: 'line'};
+    }
+    return viz;
+  });
   
   return (
     <div className="w-full mt-8 mb-20 animate-fade-in-up">
@@ -141,18 +170,28 @@ const Dashboard = ({
             </div>
           </div>
           
-          {visualizations && visualizations.length > 0 ? (
+          {enhancedVisualizations.length > 0 ? (
             // Display Plotly visualizations with flexible layout
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {visualizations.map((viz, index) => {
+              {enhancedVisualizations.map((viz, index) => {
                 console.log(`Rendering visualization ${index}:`, viz.type);
+                
+                // Ensure chart type matches the query intent
+                const chartType = (
+                  query.toLowerCase().includes(viz.type) ? 
+                  viz.type : 
+                  chartTypes.includes(viz.type) ? 
+                  viz.type : 
+                  chartTypes[0]
+                );
+                
                 return (
                   <PlotlyVisualization 
                     key={`viz-${index}`} 
-                    title={viz.description || `${viz.type.charAt(0).toUpperCase() + viz.type.slice(1)} Chart`} 
+                    title={viz.description || `${chartType.charAt(0).toUpperCase() + chartType.slice(1)} Chart`} 
                     description={viz.reason || 'Generated visualization'} 
                     figure={viz.figure} 
-                    type={viz.type || 'bar'} 
+                    type={chartType} 
                   />
                 );
               })}
