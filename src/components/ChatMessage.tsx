@@ -1,6 +1,6 @@
 
 import { ReactNode } from 'react';
-import { MessageSquare, Bot, User, Terminal, Code, FileText } from 'lucide-react';
+import { MessageSquare, Bot, User } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import PlotlyVisualization from './PlotlyVisualization';
@@ -26,36 +26,35 @@ const ChatMessage = ({
   isLoading 
 }: ChatMessageProps) => {
   const isUser = role === 'user';
-  const isTool = role === 'tool';
   
   let icon: ReactNode = null;
   if (isUser) {
     icon = <User className="h-5 w-5 text-muted-foreground" />;
   } else if (role === 'assistant') {
     icon = <Bot className="h-5 w-5 text-yellowbird-600" />;
-  } else if (isTool) {
-    icon = <Terminal className="h-5 w-5 text-blue-600" />;
+  } else if (role === 'tool') {
+    icon = <MessageSquare className="h-5 w-5 text-blue-600" />;
   }
   
   return (
     <div className={cn(
       "w-full py-2 px-4",
-      isUser ? "bg-gray-50/60" : isTool ? "bg-blue-50/30" : "bg-white/60",
+      isUser ? "bg-gray-50/60" : "bg-white/60",
     )}>
       <div className="max-w-4xl mx-auto flex gap-3">
         <div className={cn(
           "mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-          isUser ? "bg-secondary/50" : isTool ? "bg-blue-100" : "bg-yellowbird-50"
+          isUser ? "bg-secondary/50" : "bg-yellowbird-50"
         )}>
           {icon}
         </div>
         
         <div className="flex-grow">
           <div className="text-xs text-muted-foreground mb-1">
-            {isUser ? 'You' : isTool ? `Tool: ${toolCall?.name}` : 'Assistant'}
+            {isUser ? 'You' : role === 'tool' ? `Tool: ${toolCall?.name}` : 'Assistant'}
           </div>
           
-          <div className="space-y-3">
+          <div className="space-y-2">
             {/* Main message content */}
             {content && (
               <div className="prose prose-sm max-w-none text-base">
@@ -69,12 +68,9 @@ const ChatMessage = ({
             
             {/* Tool call */}
             {toolCall && (
-              <Card className="text-xs p-3 bg-blue-50/50 border-blue-200/60 overflow-x-auto">
-                <div className="flex items-center mb-2">
-                  <Code className="h-4 w-4 mr-2 text-blue-600" />
-                  <span className="font-medium">Arguments:</span>
-                </div>
-                <div className="font-mono whitespace-pre-wrap pl-6 text-blue-800">
+              <Card className="text-xs p-3 bg-secondary/30 border-secondary/40 overflow-x-auto">
+                <div className="font-mono whitespace-pre-wrap">
+                  <p className="text-xs font-semibold mb-1">Arguments:</p>
                   <pre>{JSON.stringify(toolCall.arguments, null, 2)}</pre>
                 </div>
               </Card>
@@ -82,12 +78,9 @@ const ChatMessage = ({
             
             {/* Tool output */}
             {toolOutput && (
-              <Card className="text-xs p-3 bg-green-50/50 border-green-200/60 overflow-x-auto">
-                <div className="flex items-center mb-2">
-                  <FileText className="h-4 w-4 mr-2 text-green-600" />
-                  <span className="font-medium">Output:</span>
-                </div>
-                <div className="font-mono whitespace-pre-wrap pl-6 text-green-800">
+              <Card className="text-xs p-3 bg-yellowbird-50/30 border-yellowbird-100/40 overflow-x-auto">
+                <div className="font-mono whitespace-pre-wrap">
+                  <p className="text-xs font-semibold mb-1">Output:</p>
                   <pre>{toolOutput}</pre>
                 </div>
               </Card>

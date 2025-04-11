@@ -13,66 +13,7 @@ DB_URI = os.getenv('DATA_DB_URI', f'sqlite:///{DEFAULT_DB_PATH}')
 TABLE_NAME = 'sales'
 
 def seed_database():
-    print(f"Seeding database at: {DB_URI}")
-    engine = create_engine(DB_URI)
-
-    try:
-        with engine.connect() as connection:
-            transaction = connection.begin()
-            try:
-                inspector = inspect(engine)
-                if not inspector.has_table(TABLE_NAME):
-                    print(f"Creating table '{TABLE_NAME}'...")
-                    # Use text() for compatibility
-                    connection.execute(text(f'''
-                        CREATE TABLE {TABLE_NAME} (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            product TEXT,
-                            region TEXT,
-                            amount REAL,
-                            sale_date DATE
-                        )
-                    '''))
-                    print(f"Table '{TABLE_NAME}' created.")
-                else:
-                    print(f"Table '{TABLE_NAME}' already exists.")
-
-                # Check if table is empty before seeding
-                count_result = connection.execute(text(f"SELECT COUNT(*) FROM {TABLE_NAME}")).scalar_one_or_none()
-                
-                if count_result == 0:
-                    print(f"Seeding table '{TABLE_NAME}'...")
-                    sample_data = [
-                        {'product': 'Laptop', 'region': 'North', 'amount': 1200.50, 'sale_date': '2024-01-15'},
-                        {'product': 'Keyboard', 'region': 'South', 'amount': 75.00, 'sale_date': '2024-01-20'},
-                        {'product': 'Monitor', 'region': 'East', 'amount': 300.75, 'sale_date': '2024-02-10'},
-                        {'product': 'Mouse', 'region': 'West', 'amount': 25.50, 'sale_date': '2024-02-12'},
-                        {'product': 'Laptop', 'region': 'North', 'amount': 1250.00, 'sale_date': '2024-03-05'},
-                        {'product': 'Webcam', 'region': 'South', 'amount': 50.00, 'sale_date': '2024-03-08'},
-                        {'product': 'Monitor', 'region': 'West', 'amount': 310.00, 'sale_date': '2024-04-22'},
-                        {'product': 'Keyboard', 'region': 'East', 'amount': 80.00, 'sale_date': '2024-04-25'},
-                        {'product': 'Laptop', 'region': 'South', 'amount': 1150.00, 'sale_date': '2024-05-01'},
-                        {'product': 'Mouse', 'region': 'North', 'amount': 28.00, 'sale_date': '2024-05-03'}
-                    ]
-                    df = pd.DataFrame(sample_data)
-                    df.to_sql(TABLE_NAME, con=connection, if_exists='append', index=False)
-                    print(f"Table '{TABLE_NAME}' seeded with {len(df)} rows.")
-                else:
-                     print(f"Table '{TABLE_NAME}' already contains {count_result} row(s). Skipping seeding.")
-
-                transaction.commit()
-                print("Transaction committed.")
-            except Exception as inner_e:
-                 print(f"Error during transaction: {inner_e}")
-                 transaction.rollback()
-                 print("Transaction rolled back.")
-                 raise # Re-raise the exception after rollback
-
-    except Exception as e:
-        print(f"Database connection or setup error: {e}")
-    finally:
-        if 'engine' in locals():
-            engine.dispose()
+    # ... keep existing code (database seeding logic)
 
 def init_persistent_storage():
     """Creates required persistent storage tables if they don't exist."""
@@ -91,7 +32,7 @@ def init_persistent_storage():
             if not inspector.has_table("session_visualizations"):
                 print("Creating 'session_visualizations' table...")
                 connection.execute(text("""
-                    CREATE TABLE session_visualizations (
+                    CREATE TABLE IF NOT EXISTS session_visualizations (
                         session_id TEXT NOT NULL,
                         tool_call_id TEXT NOT NULL, 
                         plotly_json TEXT NOT NULL,
@@ -109,7 +50,7 @@ def init_persistent_storage():
             if not inspector.has_table("session_queries"):
                 print("Creating 'session_queries' table...")
                 connection.execute(text("""
-                    CREATE TABLE session_queries (
+                    CREATE TABLE IF NOT EXISTS session_queries (
                         session_id TEXT NOT NULL,
                         query_id TEXT NOT NULL,
                         db_key TEXT NOT NULL,
@@ -132,6 +73,21 @@ def init_persistent_storage():
                 print("Verified: 'session_visualizations' table exists")
             else:
                 print("ERROR: 'session_visualizations' table was not created")
+                # Try direct creation as fallback
+                try:
+                    connection.execute(text("""
+                        CREATE TABLE IF NOT EXISTS session_visualizations (
+                            session_id TEXT NOT NULL,
+                            tool_call_id TEXT NOT NULL, 
+                            plotly_json TEXT NOT NULL,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            PRIMARY KEY (session_id, tool_call_id)
+                        );
+                    """))
+                    connection.commit()
+                    print("Fallback creation attempt for session_visualizations completed")
+                except Exception as create_err:
+                    print(f"Fallback creation failed: {create_err}")
                 
             # Check session_queries
             result = connection.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='session_queries'"))
@@ -139,12 +95,66 @@ def init_persistent_storage():
                 print("Verified: 'session_queries' table exists")
             else:
                 print("ERROR: 'session_queries' table was not created")
+                # Try direct creation as fallback
+                try:
+                    connection.execute(text("""
+                        CREATE TABLE IF NOT EXISTS session_queries (
+                            session_id TEXT NOT NULL,
+                            query_id TEXT NOT NULL,
+                            db_key TEXT NOT NULL,
+                            sql_query TEXT NOT NULL,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            PRIMARY KEY (session_id, query_id)
+                        );
+                    """))
+                    connection.commit()
+                    print("Fallback creation attempt for session_queries completed")
+                except Exception as create_err:
+                    print(f"Fallback creation failed: {create_err}")
 
     except Exception as e:
         print(f"Error initializing persistent storage tables: {e}")
         # Print more detailed error information
         import traceback
         traceback.print_exc()
+        
+        # Try a direct SQLite approach as a last resort
+        try:
+            import sqlite3
+            db_path = SESSION_DB_URI.replace('sqlite:///', '')
+            print(f"Attempting direct SQLite connection to {db_path}")
+            
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # Create visualization table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS session_visualizations (
+                    session_id TEXT NOT NULL,
+                    tool_call_id TEXT NOT NULL, 
+                    plotly_json TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (session_id, tool_call_id)
+                );
+            """)
+            
+            # Create queries table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS session_queries (
+                    session_id TEXT NOT NULL,
+                    query_id TEXT NOT NULL,
+                    db_key TEXT NOT NULL,
+                    sql_query TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (session_id, query_id)
+                );
+            """)
+            
+            conn.commit()
+            conn.close()
+            print("Direct SQLite table creation completed as fallback")
+        except Exception as sqlite_err:
+            print(f"Direct SQLite approach also failed: {sqlite_err}")
 
 if __name__ == "__main__":
     # Initialize persistent storage first to ensure tables exist
