@@ -230,7 +230,7 @@ const Index = () => {
         const updatedMessages = [
           ...prev.filter(msg => !msg.isLoading),
           {
-            role: 'assistant',
+            role: 'assistant' as const,
             content: 'Sorry, I encountered an error while processing your query. Please try again.'
           }
         ];
