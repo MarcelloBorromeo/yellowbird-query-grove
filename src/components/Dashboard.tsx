@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import ChartCard from './ChartCard';
 import PlotlyVisualization from './PlotlyVisualization';
@@ -24,33 +23,23 @@ const Dashboard = ({
   const [showDashboard, setShowDashboard] = useState(false);
   
   useEffect(() => {
-    // Show dashboard if we have data or visualizations
+    // Only show dashboard if we have actual visualizations or data
     const hasData = data && data.length > 0;
     const hasVisualizations = visualizations && visualizations.length > 0;
     
-    if ((hasData || hasVisualizations) && !isLoading) {
-      setShowDashboard(true);
-      console.log("Dashboard showing with visualizations:", visualizations?.length || 0);
-    } else {
-      console.log("Dashboard not showing: hasData=", hasData, "hasVisualizations=", hasVisualizations, "isLoading=", isLoading);
-      
-      // Force dashboard to show with test data if we have query but no data/visualizations
-      if (query && !isLoading && !hasData && !hasVisualizations) {
-        console.log("Forcing dashboard to show with empty state for query:", query);
-        setShowDashboard(true);
-      }
-    }
-  }, [data, isLoading, visualizations, query]);
+    // Only show the dashboard if we have actual data or visualizations
+    setShowDashboard((hasData || hasVisualizations) && !isLoading);
+    
+    console.log("Dashboard visibility:", {
+      showing: (hasData || hasVisualizations) && !isLoading,
+      hasData,
+      hasVisualizations,
+      isLoading
+    });
+  }, [data, isLoading, visualizations]);
   
   useEffect(() => {
     // For debugging visualizations
-    console.log('Dashboard visualizations state:', {
-      count: visualizations?.length || 0,
-      isArray: Array.isArray(visualizations),
-      isEmpty: !visualizations || visualizations.length === 0,
-      visObjects: visualizations
-    });
-    
     if (visualizations && visualizations.length > 0) {
       console.log('Dashboard received visualizations:', visualizations.length);
       visualizations.forEach((viz, idx) => {

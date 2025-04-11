@@ -169,21 +169,8 @@ export async function processQuery(query: string): Promise<QueryResult> {
         }
       }
     } else {
-      console.log("No visualizations found in response data, checking for test-visualization endpoint");
-      
-      // Always try to fetch a test visualization if none was found
-      try {
-        const testResponse = await fetch(`${API_BASE_URL}/api/test-visualization`);
-        if (testResponse.ok) {
-          const testData = await testResponse.json();
-          if (testData.visualizations && testData.visualizations.length > 0) {
-            console.log("Using test visualization as fallback");
-            visualizations = testData.visualizations;
-          }
-        }
-      } catch (testError) {
-        console.error("Error fetching test visualization:", testError);
-      }
+      console.log("No visualizations found in response data");
+      // Removed the automatic fetching of test visualizations
     }
     
     // Extract explanation based on the response format
@@ -205,27 +192,7 @@ export async function processQuery(query: string): Promise<QueryResult> {
     
     console.log("Final visualizations to render:", visualizations.length);
     
-    // If we still have no visualizations after all attempts, create a basic one
-    if (visualizations.length === 0) {
-      console.log("No visualizations available after all attempts, creating a basic one");
-      try {
-        // Always try to fetch a test visualization one more time
-        const testResponse = await fetch(`${API_BASE_URL}/api/test-visualization`);
-        if (testResponse.ok) {
-          const testData = await testResponse.json();
-          if (testData.visualizations && testData.visualizations.length > 0) {
-            console.log("Using test visualization as final fallback");
-            visualizations = testData.visualizations.map((viz: any) => ({
-              ...viz,
-              description: `Visualization for: ${query}`,
-              reason: "Generated visualization based on your query"
-            }));
-          }
-        }
-      } catch (fallbackError) {
-        console.error("Error fetching fallback visualization:", fallbackError);
-      }
-    }
+    // Removed the fallback visualization creation - we'll only show visualizations if they're actually available
     
     return {
       data: mockData, // This will be empty but maintains API compatibility
