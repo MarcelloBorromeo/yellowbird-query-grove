@@ -92,6 +92,8 @@ const ChatMessage = ({
                 <PlotlyVisualization 
                   figure={visualization.figure}
                   type={visualization.type}
+                  title={visualization.title || 'Data Visualization'}
+                  description={visualization.description}
                 />
               </div>
             )}
