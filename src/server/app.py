@@ -605,8 +605,11 @@ def handle_query():
 
     if not user_query:
         return jsonify({"error": "No question provided"}), 400
-
-    try:
-        agent = Agent(
-            agent_id="data-navigator-agent",
-            model=OpenAIC
+    
+try:
+    agent = Agent(
+        agent_id="data-navigator-agent",
+        model=OpenAIC  # Make sure OpenAIC is defined earlier
+    )
+except Exception as e:
+    print(f"Error initializing agent: {e}")
