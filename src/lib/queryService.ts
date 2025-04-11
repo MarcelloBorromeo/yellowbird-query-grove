@@ -23,127 +23,6 @@ export interface QueryResult {
 
 const API_BASE_URL = 'http://localhost:5002';
 
-// Function to extract table data from markdown format
-function extractTableData(markdownText: string): { headers: string[], rows: string[][] } | null {
-  if (!markdownText) return null;
-  
-  // Look for markdown table pattern
-  const tablePattern = /\|\s*(.*?)\s*\|\s*\n\|\s*[-:\|\s]+\|\s*\n((?:\|\s*.*?\s*\|\s*\n)+)/;
-  const match = markdownText.match(tablePattern);
-  
-  if (!match) return null;
-  
-  // Extract headers
-  const headerLine = match[1];
-  const headers = headerLine.split('|')
-    .map(h => h.trim())
-    .filter(h => h.length > 0);
-  
-  // Extract rows
-  const rowsText = match[2];
-  const rows = rowsText.trim().split('\n')
-    .map(row => row.split('|')
-      .map(cell => cell.trim())
-      .filter(cell => cell.length > 0)
-    );
-  
-  return { headers, rows };
-}
-
-// Create a visualization from table data
-function createVisualizationFromTable(tableData: { headers: string[], rows: string[][] }, query: string): any {
-  try {
-    // Check if we have valid data
-    if (!tableData || !tableData.headers || !tableData.rows || tableData.rows.length === 0) {
-      return null;
-    }
-    
-    // Determine if headers indicate time/date and value columns
-    const dateColumnIndex = tableData.headers.findIndex(h => 
-      h.toLowerCase().includes('date') || 
-      h.toLowerCase().includes('time') || 
-      h.toLowerCase().includes('month') || 
-      h.toLowerCase().includes('year')
-    );
-    
-    const valueColumnIndex = tableData.headers.findIndex(h => 
-      h.toLowerCase().includes('sales') || 
-      h.toLowerCase().includes('value') || 
-      h.toLowerCase().includes('amount') || 
-      h.toLowerCase().includes('total')
-    );
-    
-    // If we can identify date and value columns, create a line chart
-    if (dateColumnIndex >= 0 && valueColumnIndex >= 0) {
-      const xValues = tableData.rows.map(row => row[dateColumnIndex]);
-      const yValues = tableData.rows.map(row => parseFloat(row[valueColumnIndex].replace(/,/g, '')));
-      
-      // Create a Plotly line chart figure
-      const figure = {
-        data: [
-          {
-            type: 'scatter',
-            mode: 'lines+markers',
-            x: xValues,
-            y: yValues,
-            name: tableData.headers[valueColumnIndex],
-            marker: { color: '#4C9AFF' }
-          }
-        ],
-        layout: {
-          title: `${tableData.headers[valueColumnIndex]} over time`,
-          xaxis: { title: tableData.headers[dateColumnIndex] },
-          yaxis: { title: tableData.headers[valueColumnIndex] }
-        }
-      };
-      
-      return {
-        type: 'line',
-        figure,
-        description: `${tableData.headers[valueColumnIndex]} over ${tableData.headers[dateColumnIndex]}`,
-        reason: `Visualizing the trend of ${tableData.headers[valueColumnIndex]} over time.`
-      };
-    }
-    
-    // If we couldn't identify specific columns, create a generic bar chart
-    // Using the first column as categories and second as values
-    if (tableData.headers.length >= 2) {
-      const xValues = tableData.rows.map(row => row[0]);
-      const yValues = tableData.rows.map(row => parseFloat(row[1].replace(/,/g, '')));
-      
-      // Create a Plotly bar chart figure
-      const figure = {
-        data: [
-          {
-            type: 'bar',
-            x: xValues,
-            y: yValues,
-            name: tableData.headers[1],
-            marker: { color: '#36B37E' }
-          }
-        ],
-        layout: {
-          title: tableData.headers[1],
-          xaxis: { title: tableData.headers[0] },
-          yaxis: { title: tableData.headers[1] }
-        }
-      };
-      
-      return {
-        type: 'bar',
-        figure,
-        description: `${tableData.headers[1]} by ${tableData.headers[0]}`,
-        reason: `Comparing ${tableData.headers[1]} across different ${tableData.headers[0]} categories.`
-      };
-    }
-    
-    return null;
-  } catch (error) {
-    console.error("Error creating visualization from table:", error);
-    return null;
-  }
-}
-
 export async function processQuery(query: string): Promise<QueryResult> {
   console.log("Processing query:", query);
   
@@ -291,6 +170,7 @@ export async function processQuery(query: string): Promise<QueryResult> {
       }
     } else {
       console.log("No visualizations found in response data");
+      // Removed the automatic fetching of test visualizations
     }
     
     // Extract explanation based on the response format
@@ -307,24 +187,12 @@ export async function processQuery(query: string): Promise<QueryResult> {
       }
     }
     
-    // If we still don't have visualizations, try to extract table data from the explanation
-    if (visualizations.length === 0 && explanation) {
-      console.log("Trying to create visualization from table in explanation");
-      const tableData = extractTableData(explanation);
-      if (tableData) {
-        console.log("Found table data in explanation:", tableData);
-        const tableViz = createVisualizationFromTable(tableData, query);
-        if (tableViz) {
-          console.log("Created visualization from table data");
-          visualizations.push(tableViz);
-        }
-      }
-    }
-    
     // Create a simplified mock data structure for backward compatibility
     const mockData: DataPoint[] = [];
     
     console.log("Final visualizations to render:", visualizations.length);
+    
+    // Removed the fallback visualization creation - we'll only show visualizations if they're actually available
     
     return {
       data: mockData, // This will be empty but maintains API compatibility

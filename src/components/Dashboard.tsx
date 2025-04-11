@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import ChartCard from './ChartCard';
 import PlotlyVisualization from './PlotlyVisualization';
@@ -24,11 +23,11 @@ const Dashboard = ({
   const [showDashboard, setShowDashboard] = useState(false);
   
   useEffect(() => {
-    // Determine whether to show the dashboard
+    // Only show dashboard if we have actual visualizations or data
     const hasData = data && data.length > 0;
     const hasVisualizations = visualizations && visualizations.length > 0;
     
-    // Show dashboard if we have actual data or visualizations
+    // Only show the dashboard if we have actual data or visualizations
     setShowDashboard((hasData || hasVisualizations) && !isLoading);
     
     console.log("Dashboard visibility:", {
@@ -40,7 +39,7 @@ const Dashboard = ({
   }, [data, isLoading, visualizations]);
   
   useEffect(() => {
-    // Debug visualizations
+    // For debugging visualizations
     if (visualizations && visualizations.length > 0) {
       console.log('Dashboard received visualizations:', visualizations.length);
       visualizations.forEach((viz, idx) => {
