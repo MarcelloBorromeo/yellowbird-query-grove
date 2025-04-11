@@ -123,9 +123,9 @@ const ChatInterface = ({
         
         {/* Messages container */}
         <div className="flex-grow overflow-y-auto bg-gradient-to-br from-yellow-50/70 via-white to-yellow-50/50">
-          <div className="min-h-full pb-36">
+          <div className="min-h-full">
             {messages.length > 0 ? (
-              <div className="pt-4">
+              <div className="pt-4 pb-4">
                 {messages.map((msg, index) => (
                   <ChatMessage key={index} {...msg} />
                 ))}
@@ -145,7 +145,7 @@ const ChatInterface = ({
         </div>
         
         {/* Input area */}
-        <div className="border-t border-gray-200 bg-white/90 backdrop-blur-sm p-4 fixed bottom-0 left-0 right-0">
+        <div className="border-t border-gray-200 bg-white/90 backdrop-blur-sm p-4">
           <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
             <div className="relative">
               <Textarea

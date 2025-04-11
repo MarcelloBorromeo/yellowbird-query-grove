@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -5,8 +6,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { processQuery, QueryResult } from '@/lib/queryService';
 import { ChatMessageProps } from '@/components/ChatMessage';
 import ChatInterface from '@/components/ChatInterface';
-import ResponseBox from '@/components/ResponseBox';
-import ToolCallsSection from '@/components/ToolCallsSection';
 
 const Index = () => {
   const [messages, setMessages] = useState<ChatMessageProps[]>([]);
@@ -14,9 +13,6 @@ const Index = () => {
   const [currentSessionId, setCurrentSessionId] = useState<string>('');
   const [sessionList, setSessionList] = useState<{ id: string; query: string; timestamp: Date }[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [currentToolCallIndex, setCurrentToolCallIndex] = useState(0);
-  const [currentToolCalls, setCurrentToolCalls] = useState<any[]>([]);
-  const [currentResponse, setCurrentResponse] = useState('');
   const navigate = useNavigate();
 
   // Initialize or load session
@@ -59,8 +55,6 @@ const Index = () => {
         content: 'I am a data analysis assistant designed to help you understand and visualize data by querying databases and generating visualizations. If you have any questions or need assistance with data-related tasks, feel free to ask!'
       }
     ]);
-    setCurrentToolCalls([]);
-    setCurrentResponse('');
     
     // Update URL with the new session ID
     setSearchParams({ session_id: newSessionId });
@@ -106,9 +100,6 @@ const Index = () => {
           }
         ]));
       }
-      
-      setCurrentToolCalls([]);
-      setCurrentResponse('');
     } catch (e) {
       console.error('Error loading session:', e);
       toast.error('Failed to load chat session');
@@ -120,11 +111,6 @@ const Index = () => {
     setCurrentSessionId(sessionId);
     setSearchParams({ session_id: sessionId });
     loadSession(sessionId);
-  };
-
-  // Handle navigating between tool calls
-  const handleToolCallNavigate = (index: number) => {
-    setCurrentToolCallIndex(index);
   };
 
   // Handle query submission
@@ -148,8 +134,6 @@ const Index = () => {
     
     setMessages(prev => [...prev, thinkingMessage]);
     setIsProcessing(true);
-    setCurrentToolCalls([]);
-    setCurrentResponse('');
     
     try {
       // Process the query
@@ -158,44 +142,56 @@ const Index = () => {
       // Remove thinking message
       setMessages(prev => prev.filter(msg => !msg.isLoading));
       
-      // Set the response text
-      setCurrentResponse(result.explanation);
-      
-      // Store tool calls if any
-      if (result.toolCalls && result.toolCalls.length > 0) {
-        setCurrentToolCalls(result.toolCalls);
-        setCurrentToolCallIndex(0);
-      }
-      
       // Create messages from the result
-      const newMessages: ChatMessageProps[] = [
-        // User message is already added
-        // Keeping assistant message but only with visualizations if available
-        {
-          role: 'assistant',
-          content: '',
-          ...(result.visualizations && result.visualizations.length > 0 
-              ? { visualization: result.visualizations[0] } 
-              : {})
-        }
-      ];
+      const newMessages: ChatMessageProps[] = [];
       
-      // Add any additional visualizations
-      if (result.visualizations && result.visualizations.length > 1) {
-        for (let i = 1; i < result.visualizations.length; i++) {
+      // Add assistant response
+      newMessages.push({
+        role: 'assistant',
+        content: result.explanation
+      });
+      
+      // Add tool calls if any
+      if (result.toolCalls && result.toolCalls.length > 0) {
+        result.toolCalls.forEach((toolCall, index) => {
           newMessages.push({
-            role: 'assistant',
-            content: result.visualizations[i].description || 'Additional visualization:',
-            visualization: result.visualizations[i]
+            role: 'tool',
+            content: '',
+            toolCall: {
+              name: toolCall.name,
+              arguments: toolCall.arguments,
+            },
+            toolOutput: toolCall.output
           });
-        }
+        });
       }
       
-      // Update messages with new ones, preserving the user message
+      // Add visualization if available
+      if (result.visualizations && result.visualizations.length > 0) {
+        // Add visualization to the last message
+        const lastMessage = newMessages[newMessages.length - 1];
+        
+        result.visualizations.forEach((viz, index) => {
+          if (index === 0) {
+            // Add to the last message
+            newMessages[newMessages.length - 1] = {
+              ...lastMessage,
+              visualization: viz
+            };
+          } else {
+            // Add as a new message
+            newMessages.push({
+              role: 'assistant',
+              content: viz.description || 'Here is another visualization of the data:',
+              visualization: viz
+            });
+          }
+        });
+      }
+      
+      // Update messages with new ones
       setMessages(prev => {
-        const userMessages = prev.filter(msg => msg.role === 'user');
-        const lastUserMessage = userMessages[userMessages.length - 1];
-        const updatedMessages = [...prev.filter(msg => !msg.isLoading && msg !== lastUserMessage), lastUserMessage, ...newMessages];
+        const updatedMessages = [...prev.filter(msg => !msg.isLoading), ...newMessages];
         
         // Save to localStorage
         localStorage.setItem(`yellowbird_session_${sessionId}`, JSON.stringify(updatedMessages));
@@ -252,34 +248,15 @@ const Index = () => {
   };
 
   return (
-    <>
-      <ChatInterface
-        onSubmitQuery={handleSubmitQuery}
-        messages={messages}
-        isProcessing={isProcessing}
-        currentSessionId={currentSessionId}
-        sessionList={sessionList}
-        onNewSession={createNewSession}
-        onSelectSession={handleSelectSession}
-      />
-      
-      {/* Tool Calls Section - Shown after a query with tool calls */}
-      {currentToolCalls.length > 0 && (
-        <div className="fixed bottom-[80px] left-0 right-0 mx-auto max-w-4xl px-4">
-          <ToolCallsSection 
-            toolCalls={currentToolCalls}
-            currentToolCallIndex={currentToolCallIndex}
-            onNavigate={handleToolCallNavigate}
-          />
-          
-          {/* Response Box - Shown below tool calls */}
-          <ResponseBox 
-            content={currentResponse} 
-            isLoading={isProcessing} 
-          />
-        </div>
-      )}
-    </>
+    <ChatInterface
+      onSubmitQuery={handleSubmitQuery}
+      messages={messages}
+      isProcessing={isProcessing}
+      currentSessionId={currentSessionId}
+      sessionList={sessionList}
+      onNewSession={createNewSession}
+      onSelectSession={handleSelectSession}
+    />
   );
 };
 
