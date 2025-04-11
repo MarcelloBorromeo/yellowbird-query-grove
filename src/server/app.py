@@ -55,10 +55,42 @@ storage = SqliteStorage(table_name="agent_sessions", db_url=SESSION_DB_URI)
 # Optional: Automatically upgrade schema if needed (run once)
 storage.upgrade_schema()
 
+# Initialize required tables for session queries and visualizations
+def ensure_session_tables_exist():
+    """Create necessary tables for storing session queries and visualizations if they don't exist"""
+    try:
+        engine = create_engine(SESSION_DB_URI)
+        with engine.connect() as conn:
+            # Create session_queries table if it doesn't exist
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS session_queries (
+                    session_id TEXT,
+                    query_id TEXT,
+                    db_key TEXT,
+                    sql_query TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (session_id, query_id)
+                )
+            """))
+            
+            # Create session_visualizations table if it doesn't exist
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS session_visualizations (
+                    session_id TEXT,
+                    tool_call_id TEXT,
+                    plotly_json TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (session_id, tool_call_id)
+                )
+            """))
+            if engine.dialect.supports_sane_rowcount_returning is False:
+                conn.commit()
+            print("Successfully initialized session tables for queries and visualizations")
+    except Exception as e:
+        print(f"Error initializing session tables: {e}")
 
-# --- Temporary Cache for Pending Visualizations ---
-# temp_viz_cache = {} # REMOVED - Persistence now happens directly in the tool
-# -----------------------------------------------
+# Call at startup to ensure tables exist
+ensure_session_tables_exist()
 
 # --- Data Navigator Toolkit --- 
 class DataNavigatorTools(Toolkit):
@@ -220,8 +252,8 @@ class DataNavigatorTools(Toolkit):
         title: str,
         x_axis: str,
         y_axis: str,
-        color: str = None,
-        size: str = None
+        color: str = "",  # Changed from None to empty string default
+        size: str = ""    # Changed from None to empty string default
     ) -> str:
         """
         Generates a Plotly visualization using data from a previously saved query and saves it persistently,
@@ -233,6 +265,10 @@ class DataNavigatorTools(Toolkit):
         Returns: JSON with {"status": "success", "message": "Visualization generated and saved."} on success, or {"error": "..."} on failure.
         """
         print(f"Executing generate_plotly_visualization_from_saved_query for saved_query_id: {saved_query_id}")
+        
+        # Handle None values for color and size
+        color = "" if color is None else color
+        size = "" if size is None else size
 
         # Retrieve current session_id directly from the agent instance
         current_session_id = agent.session_id
@@ -315,8 +351,8 @@ class DataNavigatorTools(Toolkit):
                 title=title, 
                 x_axis=x_axis, 
                 y_axis=y_axis,
-                color=color, # Pass optional args too
-                size=size
+                color=color if color else None,  # Convert empty string back to None if needed
+                size=size if size else None      # Convert empty string back to None if needed
             )
 
             # Check if plotting was successful or failed
