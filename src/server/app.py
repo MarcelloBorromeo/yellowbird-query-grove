@@ -609,7 +609,7 @@ def handle_query():
 try:
     agent = Agent(
         agent_id="data-navigator-agent",
-        model=OpenAIC  # Make sure OpenAIC is defined earlier
+        model=OpenAIChat  # Make sure OpenAIChat is defined earlier
     )
 except Exception as e:
     print(f"Error initializing agent: {e}")
