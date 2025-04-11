@@ -35,8 +35,7 @@ const Dashboard = ({
       showing: (hasData || hasVisualizations) && !isLoading,
       hasData,
       hasVisualizations,
-      isLoading,
-      vizCount: visualizations?.length || 0
+      isLoading
     });
   }, [data, isLoading, visualizations]);
   
@@ -93,9 +92,7 @@ const Dashboard = ({
   // Helper function to determine chart types based on query
   const determineChartTypes = (query: string) => {
     const queryLower = query.toLowerCase();
-    if (queryLower.includes('pie chart') || queryLower.includes('piechart')) {
-      return ['pie', 'bar'];
-    } else if (queryLower.includes('distribution') || queryLower.includes('frequency')) {
+    if (queryLower.includes('distribution') || queryLower.includes('frequency')) {
       return ['pie', 'bar'];
     } else if (queryLower.includes('trend') || queryLower.includes('over time') || queryLower.includes('monthly') || queryLower.includes('yearly')) {
       return ['line', 'area'];
