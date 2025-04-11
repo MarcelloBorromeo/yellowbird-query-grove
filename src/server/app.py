@@ -1,7 +1,7 @@
+
 import os
 import json
 import uuid
-import re
 from flask import Flask, request, jsonify, render_template
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
@@ -13,7 +13,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.io as pio
 from sqlalchemy import create_engine, inspect, text
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from flask_cors import CORS
 
 # Load environment variables
@@ -55,6 +55,10 @@ storage = SqliteStorage(table_name="agent_sessions", db_url=SESSION_DB_URI)
 # Optional: Automatically upgrade schema if needed (run once)
 storage.upgrade_schema()
 
+
+# --- Temporary Cache for Pending Visualizations ---
+# temp_viz_cache = {} # REMOVED - Persistence now happens directly in the tool
+# -----------------------------------------------
 
 # --- Data Navigator Toolkit --- 
 class DataNavigatorTools(Toolkit):
@@ -157,41 +161,9 @@ class DataNavigatorTools(Toolkit):
 
             df = data_df # Use the provided DataFrame directly
 
-            # Fix datatypes - ensure numeric columns are treated as such
-            for col in df.columns:
-                if x_axis == col or y_axis == col:
-                    try:
-                        # Only convert if it looks like a number
-                        if df[col].dtype == 'object':
-                            # Check if the column might contain numbers as strings
-                            sample = df[col].dropna().iloc[0] if not df[col].dropna().empty else None
-                            if sample and isinstance(sample, str) and sample.replace('.', '').replace('-', '').isdigit():
-                                df[col] = pd.to_numeric(df[col], errors='coerce')
-                    except Exception as e:
-                        print(f"Error converting column {col} to numeric: {e}")
-                
-                # Try to convert date-like columns to datetime
-                if 'date' in col.lower() or 'time' in col.lower():
-                    try:
-                        df[col] = pd.to_datetime(df[col], errors='coerce')
-                    except Exception as e:
-                        print(f"Error converting column {col} to datetime: {e}")
-
-            # Define supported plot types and their functions
-            plot_types = {
-                'scatter': px.scatter,
-                'bar': px.bar,
-                'line': px.line,
-                'pie': px.pie,
-                'histogram': px.histogram,
-                'box': px.box,
-                'violin': px.violin,
-                'area': px.area
-            }
-
-            plot_func = plot_types.get(plot_type)
+            plot_func = getattr(px, plot_type, None)
             if not plot_func:
-                return json.dumps({"error": f"Unsupported plot type: {plot_type}. Supported types: {', '.join(plot_types.keys())}"})
+                return json.dumps({"error": f"Unsupported plot type: {plot_type}. Supported types: scatter, bar, line, pie, histogram"})
 
             plot_args = {'data_frame': df, 'title': title}
 
@@ -229,25 +201,7 @@ class DataNavigatorTools(Toolkit):
                  elif col_name:
                       return json.dumps({"error": f"Column '{col_name}' specified for '{arg_name}' not found in data. Available columns: {list(df.columns)}"})
 
-            # Adjust layout settings
-            plot_args['template'] = 'plotly_white'
-            plot_args['height'] = 400
-            
-            # Sort by x if it's a date column and we're creating a line or area chart
-            if plot_type in ['line', 'area'] and x_axis in df.columns:
-                try:
-                    if pd.api.types.is_datetime64_any_dtype(df[x_axis]):
-                        df = df.sort_values(by=x_axis)
-                except Exception as e:
-                    print(f"Error sorting dataframe by date column: {e}")
-                    
             fig = plot_func(**plot_args)
-            # Update layout with consistent styling
-            fig.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                margin=dict(l=40, r=40, t=50, b=40)
-            )
             plot_json = pio.to_json(fig)
             return plot_json
 
@@ -255,22 +209,7 @@ class DataNavigatorTools(Toolkit):
             print(f"Plotly generation error in _create_plot_from_df: {e}")
             import traceback
             traceback.print_exc()
-            
-            # Create fallback visualization as a last resort
-            try:
-                # Create a simple error visualization
-                fig = px.bar(
-                    x=['Error', 'Occurred'],
-                    y=[1, 2],
-                    title="Visualization Error"
-                )
-                fig.update_layout(
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)'
-                )
-                return pio.to_json(fig)
-            except:
-                return json.dumps({"error": f"Error generating plot: {e}"})
+            return json.dumps({"error": f"Error generating plot: {e}"})
 
     def generate_plotly_visualization_from_saved_query(
         self,
@@ -451,35 +390,16 @@ class DataNavigatorTools(Toolkit):
         # Generate a unique ID for this saved query
         saved_query_id = str(uuid.uuid4())
 
-        # Save to the database with improved error handling
+        # Save to the database
         try:
             # Use the session_db_uri stored in the instance
             query_store_engine = create_engine(self.session_db_uri)
-            
-            # First check if the table exists
-            with query_store_engine.connect() as conn:
-                inspector = inspect(query_store_engine)
-                if 'session_queries' not in inspector.get_table_names():
-                    # Create the table if it doesn't exist
-                    stmt = text("""
-                        CREATE TABLE IF NOT EXISTS session_queries (
-                            session_id TEXT NOT NULL,
-                            query_id TEXT NOT NULL,
-                            db_key TEXT NOT NULL,
-                            sql_query TEXT NOT NULL,
-                            PRIMARY KEY (session_id, query_id)
-                        )
-                    """)
-                    conn.execute(stmt)
-                    if conn.engine.dialect.supports_sane_rowcount_returning is False:
-                        conn.commit()
-                    print("Created session_queries table")
-            
-            # Now insert the query
             with query_store_engine.connect() as conn:
                 stmt = text("""
                     INSERT INTO session_queries (session_id, query_id, db_key, sql_query)
                     VALUES (:session_id, :query_id, :db_key, :sql_query)
+                    ON CONFLICT(session_id, query_id) DO UPDATE SET
+                    db_key = excluded.db_key, sql_query = excluded.sql_query;
                 """)
                 conn.execute(stmt, {
                     "session_id": current_session_id,
@@ -493,9 +413,7 @@ class DataNavigatorTools(Toolkit):
             return json.dumps({"status": "success", "saved_query_id": saved_query_id})
         except Exception as db_err:
             print(f"Error saving query to DB: {db_err}")
-            # Return a success anyway with the ID to allow for fallback visualization
-            print(f"Returning success status despite DB error to enable visualization fallback")
-            return json.dumps({"status": "success", "saved_query_id": saved_query_id})
+            return json.dumps({"error": f"Database error saving query: {db_err}"})
 
 # --- Agent Setup ---
 api_key = os.getenv("OPENAI_API_KEY")
@@ -614,3 +532,214 @@ def _prepare_frontend_data(messages: list, session_id: str) -> tuple[list, dict]
                     })
 
                     # Find and add corresponding tool output
+                    if tool_call_id in tool_outputs_map:
+                         output_details = tool_outputs_map[tool_call_id]
+                         assistant_msg['tool_outputs'].append({
+                             'tool_call_id': tool_call_id,
+                             'tool_name': output_details.get('tool_name', tool_name), 
+                             'content': output_details.get('content', '')
+                         })
+
+            frontend_history.append(assistant_msg)
+
+        # Skip role 'tool' messages 
+
+    print(f"_prepare_frontend_data: Prepared {len(frontend_history)} history items. Returning viz map with {len(viz_by_call_id_map)} items keyed by tool_call_id.")
+    return frontend_history, viz_by_call_id_map 
+
+@app.route('/')
+def index():
+    # List available sessions for the user from storage
+    try:
+        session_ids = storage.get_all_session_ids(user_id=USER_ID)
+    except Exception as e:
+        print(f"Error fetching session IDs from storage: {e}")
+        session_ids = [] # Default to empty list on error
+    return jsonify({"status": "ok", "sessions": session_ids})
+
+@app.route('/api/query', methods=['POST'])
+def handle_query():
+    data = request.json
+    print("yo")
+    user_query = data.get('question', '')
+    session_id = data.get('session_id') or str(uuid.uuid4())
+    print(f"Handling query for session_id: {session_id}")
+
+    if not user_query:
+        return jsonify({"error": "No question provided"}), 400
+
+    try:
+        agent = Agent(
+            agent_id="data-navigator-agent",
+            model=OpenAIChat(id="gpt-4o-mini"),
+            storage=storage,
+            instructions=agent_instructions,
+            tools=[data_navigator_tools], # Pass the Toolkit instance
+            add_history_to_messages=True,
+            show_tool_calls=True,
+            debug_mode=False,
+            num_history_responses=15
+        )
+        # Set agent's context for this request
+        agent.session_id = session_id
+        agent.user_id = USER_ID 
+
+        # Run the agent - Tool calls (like plotting) now handle their own persistence using tool_call_id.
+        response = agent.run(
+            user_query,
+            user_id=USER_ID,
+            session_id=session_id,
+            stream=False
+        )
+
+        # Save agent state immediately after run
+        agent.write_to_storage()
+        print(f"Agent state saved for session {session_id} after run.")
+
+        # Prepare data for frontend using the helper function
+        all_messages = agent.memory.messages if agent.memory else []
+        frontend_history, visualizations_map_by_call_id = _prepare_frontend_data(all_messages, session_id)
+
+        # Format response in the expected structure
+        result = {
+            "RESULT": response.content if hasattr(response, 'content') else "Query processed",
+            "final_query": "Generated by Agno agent",
+            "visualizations": []
+        }
+
+        # Add visualizations if available
+        if visualizations_map_by_call_id:
+            for tool_call_id, viz_json in visualizations_map_by_call_id.items():
+                try:
+                    # Convert the JSON string to a Python object
+                    viz_obj = json.loads(viz_json)
+                    result["visualizations"].append({
+                        "type": "plotly",  # Default type for Agno visualizations
+                        "figure": viz_obj,
+                        "description": f"Visualization {tool_call_id}",
+                        "reason": "Generated by Agno agent"
+                    })
+                except Exception as e:
+                    print(f"Error processing visualization JSON: {e}")
+
+        return jsonify(result)
+
+    except Exception as e:
+        print(f"Error during agent run: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"An internal error occurred: {e}"}), 500
+
+@app.route('/api/load_session', methods=['POST'])
+def load_session():
+    data = request.json
+    session_id = data.get('session_id')
+    if not session_id:
+        print("Load Session Error: No session ID provided")
+        return jsonify({"error": "No session ID provided"}), 400
+        
+    print(f"Load Session Request: Attempting to load session_id: {session_id} for user_id: {USER_ID}")
+    agent = Agent(
+        agent_id="data-navigator-agent",
+        model=OpenAIChat(id="gpt-4o-mini"),
+        storage=storage,
+        instructions=agent_instructions,
+        tools=[data_navigator_tools], # Pass the Toolkit instance
+        add_history_to_messages=True,
+        show_tool_calls=True,
+        debug_mode=False,
+        num_history_responses=15
+    )
+    try:
+        # Set agent context
+        agent.session_id = session_id
+        agent.user_id = USER_ID
+
+        print(f"Load Session: Calling agent.read_from_storage() for session {session_id}")
+        loaded_session = agent.read_from_storage() 
+        
+        if loaded_session is None:
+            session_exists = storage.get_session(user_id=USER_ID, session_id=session_id) is not None
+            if not session_exists:
+                 print(f"Load Session Error: Session {session_id} not found in storage.")
+                 return jsonify({"error": "Session not found"}), 404
+            else:
+                 print(f"Load Session Warning: Session {session_id} found but agent.read_from_storage() failed.")
+                 return jsonify({"error": "Session found but could not be loaded"}), 500
+        else:
+             print(f"Load Session Success: Session {session_id} loaded.")
+             
+             # Prepare data for frontend using the helper function
+             all_messages = agent.memory.messages if agent.memory and hasattr(agent.memory, 'messages') else []
+             frontend_history, visualizations_map_by_call_id = _prepare_frontend_data(all_messages, session_id)
+             print(f"Load Session: Prepared history ({len(frontend_history)} items) and viz ({len(visualizations_map_by_call_id)} items).")
+
+             # Format response for compatibility with existing code
+             result = {
+                 "RESULT": "Session loaded successfully.",
+                 "final_query": "",
+                 "visualizations": []
+             }
+
+             # Add visualizations if available
+             if visualizations_map_by_call_id:
+                 for tool_call_id, viz_json in visualizations_map_by_call_id.items():
+                     try:
+                         viz_obj = json.loads(viz_json)
+                         result["visualizations"].append({
+                             "type": "plotly", 
+                             "figure": viz_obj,
+                             "description": f"Visualization {tool_call_id}",
+                             "reason": "Generated by Agno agent"
+                         })
+                     except Exception as e:
+                         print(f"Error processing visualization JSON: {e}")
+
+             return jsonify(result)
+             
+    except Exception as e:
+        print(f"Load Session Exception: Error loading session {session_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Internal error loading session: {e}"}), 500
+
+@app.route('/api/test-visualization', methods=['GET'])
+def test_visualization():
+    """Endpoint to get a test visualization for frontend testing"""
+    try:
+        print("Generating test visualization")
+        
+        # Create a simple test visualization
+        df = pd.DataFrame({
+            'Category': ['A', 'B', 'C', 'D'],
+            'Values': [25, 40, 30, 35]
+        })
+        
+        fig = px.bar(df, x='Category', y='Values', title='Test Visualization')
+        fig_json = json.loads(pio.to_json(fig))
+        
+        result = {
+            "RESULT": "This is a test visualization.",
+            "final_query": "SELECT * FROM test",
+            "visualizations": [{
+                "type": "plotly",
+                "figure": fig_json,
+                "description": "Test Bar Chart",
+                "reason": "Testing visualization rendering"
+            }]
+        }
+        
+        return jsonify(result)
+    
+    except Exception as e:
+        print(f"Error generating test visualization: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == '__main__':
+    # Ensure .env file has OPENAI_API_KEY, FLASK_SECRET_KEY
+    # Optionally set DATA_DB_URI_* and SESSION_DB_URI (defaults are SQLite)
+    # Run seed_db.py once first if using the default SQLite data DB:
+    # python seed_db.py
+    app.run(debug=True, port=5002, host='0.0.0.0') 

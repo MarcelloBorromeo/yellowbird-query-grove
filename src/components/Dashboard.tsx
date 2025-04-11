@@ -108,33 +108,6 @@ const Dashboard = ({
   
   const chartTypes = determineChartTypes(query);
   
-  // Group visualizations by type to prevent showing multiple of the same chart
-  const getUniqueVisualizations = (visualizations: QueryResult['visualizations']) => {
-    const uniqueTypes = new Set<string>();
-    return visualizations.filter(viz => {
-      // For Plotly visualizations, check the figure's first trace type
-      let vizType = viz.type;
-      if (viz.figure && typeof viz.figure === 'object' && 
-          viz.figure.data && Array.isArray(viz.figure.data) && 
-          viz.figure.data.length > 0) {
-        vizType = viz.figure.data[0].type;
-      }
-      
-      // If we already have this type of visualization, skip duplicates
-      if (uniqueTypes.has(vizType)) {
-        return false;
-      }
-      
-      uniqueTypes.add(vizType);
-      return true;
-    });
-  };
-  
-  // Get unique visualizations if we have more than 4 to prevent overcrowding
-  const visToShow = visualizations.length > 4 ? 
-    getUniqueVisualizations(visualizations) : 
-    visualizations;
-  
   return (
     <div className="w-full mt-8 mb-20 animate-fade-in-up">
       <div className="container px-4 mx-auto">
@@ -168,10 +141,10 @@ const Dashboard = ({
             </div>
           </div>
           
-          {visToShow && visToShow.length > 0 ? (
+          {visualizations && visualizations.length > 0 ? (
             // Display Plotly visualizations with flexible layout
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {visToShow.map((viz, index) => {
+              {visualizations.map((viz, index) => {
                 console.log(`Rendering visualization ${index}:`, viz.type);
                 return (
                   <PlotlyVisualization 
