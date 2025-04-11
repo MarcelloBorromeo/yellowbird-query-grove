@@ -21,7 +21,51 @@ export interface QueryResult {
   totalToolCalls?: number;
 }
 
-const API_BASE_URL = 'http://localhost:5002';
+// Default API endpoint - can be overridden by environment variable
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002';
+
+// Create a mock response when the backend is not available
+function createMockResponse(query: string): QueryResult {
+  console.log("Creating mock response for query:", query);
+  
+  // Basic mock data
+  const mockData: DataPoint[] = [
+    { name: "Category A", value: 30 },
+    { name: "Category B", value: 45 },
+    { name: "Category C", value: 25 }
+  ];
+  
+  // Create a simple mock visualization
+  const mockVisualization = {
+    type: 'bar',
+    figure: {
+      data: [
+        {
+          type: 'bar',
+          x: ['Category A', 'Category B', 'Category C'],
+          y: [30, 45, 25],
+          marker: { color: '#36B37E' }
+        }
+      ],
+      layout: {
+        title: 'Sample Data Visualization',
+        xaxis: { title: 'Category' },
+        yaxis: { title: 'Value' },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)'
+      }
+    },
+    description: "Sample data visualization",
+    reason: "This is a mock visualization because the backend service is currently unavailable."
+  };
+  
+  return {
+    data: mockData,
+    sql: "-- Mock SQL query\nSELECT category, value FROM sample_data;",
+    explanation: `This is a mock response because the backend service is unavailable.\n\nYour query was: "${query}"\n\nPlease make sure the backend service is running at ${API_BASE_URL} or set the VITE_API_URL environment variable to your backend endpoint.`,
+    visualizations: [mockVisualization]
+  };
+}
 
 // Function to extract table data from markdown format
 function extractTableData(markdownText: string): { headers: string[], rows: string[][] } | null {
@@ -338,6 +382,13 @@ export async function processQuery(query: string): Promise<QueryResult> {
     };
   } catch (error) {
     console.error("Error in processing query:", error);
+    
+    // If error is related to connection (failed to fetch), return a mock response
+    if (error instanceof Error && error.message.includes('fetch')) {
+      console.log("Backend connection failed. Using mock response instead.");
+      return createMockResponse(query);
+    }
+    
     throw createUserFriendlyError(error);
   }
 }

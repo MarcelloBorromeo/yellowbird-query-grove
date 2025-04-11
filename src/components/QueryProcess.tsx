@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import { Code, Database, RefreshCw, Check, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Code, Database, RefreshCw, Check, AlertTriangle, ChevronLeft, ChevronRight, Server } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -39,6 +39,7 @@ const QueryProcess = ({
   const [showProcess, setShowProcess] = useState(false);
   const [editedSql, setEditedSql] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isMockResponse, setIsMockResponse] = useState(false);
   
   useEffect(() => {
     if (userQuery) {
@@ -51,6 +52,15 @@ const QueryProcess = ({
       setEditedSql(sqlQuery);
     }
   }, [sqlQuery]);
+  
+  // Check if we're seeing a mock response
+  useEffect(() => {
+    if (explanation && explanation.includes("mock response because the backend service is unavailable")) {
+      setIsMockResponse(true);
+    } else {
+      setIsMockResponse(false);
+    }
+  }, [explanation]);
   
   // Log visualizations for debugging
   useEffect(() => {
@@ -133,6 +143,24 @@ const QueryProcess = ({
           </div>
           <p className="text-muted-foreground pl-8">{userQuery}</p>
         </div>
+        
+        {/* Backend Status Warning */}
+        {isMockResponse && (
+          <div className="glass-card rounded-lg p-4 border-amber-400/30 bg-amber-50/10">
+            <div className="flex items-center space-x-2 mb-2">
+              <div className="bg-amber-100/50 p-1.5 rounded-md">
+                <Server className="h-4 w-4 text-amber-600" />
+              </div>
+              <h3 className="text-sm font-medium text-amber-700">Backend Connection Issue</h3>
+            </div>
+            <div className="pl-8">
+              <p className="text-sm text-amber-600">
+                Unable to connect to the backend service. Using mock responses instead. 
+                Make sure the backend server is running at the configured URL.
+              </p>
+            </div>
+          </div>
+        )}
         
         {/* Tool Calls Container (Formerly LLM Processing) */}
         <div className={cn("glass-card rounded-lg p-4 transition-all duration-500", isProcessing ? "border-accent/30" : hasError ? "border-destructive/30" : "border-green-500/30")}>
