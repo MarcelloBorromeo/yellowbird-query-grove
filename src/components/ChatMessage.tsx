@@ -87,13 +87,13 @@ const ChatMessage = ({
             )}
             
             {/* Visualization */}
-            {visualization && (
+            {visualization && visualization.figure && (
               <div className="mt-4 rounded-lg overflow-hidden border border-yellowbird-100/40">
                 <PlotlyVisualization 
                   figure={visualization.figure}
-                  type={visualization.type}
+                  type={visualization.type || 'bar'}
                   title={visualization.title || 'Data Visualization'}
-                  description={visualization.description}
+                  description={visualization.description || ''}
                 />
               </div>
             )}

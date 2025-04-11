@@ -215,8 +215,8 @@ class DataNavigatorTools(Toolkit):
         title: str,
         x_axis: str,
         y_axis: str,
-        color: Optional[str] = "",  # Default to empty string instead of None
-        size: Optional[str] = ""    # Default to empty string instead of None
+        color: Optional[str] = None,
+        size: Optional[str] = None
     ) -> str:
         """
         Generates a Plotly visualization using data from a previously saved query and saves it persistently,
@@ -609,4 +609,4 @@ def handle_query():
 
         # Add visualizations if available
         if visualizations_map_by_call_id:
-            for tool
+            for tool_call_id, plotly_json in visualizations_map_by_
