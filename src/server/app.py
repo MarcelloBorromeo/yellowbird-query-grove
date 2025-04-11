@@ -1,6 +1,7 @@
 import os
 import json
 import uuid
+import re
 from flask import Flask, request, jsonify, render_template
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
@@ -12,7 +13,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.io as pio
 from sqlalchemy import create_engine, inspect, text
-from typing import Any
+from typing import Any, Dict, List, Optional, Tuple
 from flask_cors import CORS
 
 # Load environment variables
@@ -613,4 +614,3 @@ def _prepare_frontend_data(messages: list, session_id: str) -> tuple[list, dict]
                     })
 
                     # Find and add corresponding tool output
-                    if tool_call_id in tool_
