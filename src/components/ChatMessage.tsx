@@ -36,6 +36,9 @@ const ChatMessage = ({
     icon = <MessageSquare className="h-5 w-5 text-blue-600" />;
   }
   
+  // Check if visualization exists and has figure property
+  const hasValidVisualization = visualization && visualization.figure;
+  
   return (
     <div className={cn(
       "w-full py-2 px-4",
@@ -86,8 +89,8 @@ const ChatMessage = ({
               </Card>
             )}
             
-            {/* Visualization */}
-            {visualization && visualization.figure && (
+            {/* Visualization - only render if it has a valid figure property */}
+            {hasValidVisualization && (
               <div className="mt-4 rounded-lg overflow-hidden border border-yellowbird-100/40">
                 <PlotlyVisualization 
                   figure={visualization.figure}

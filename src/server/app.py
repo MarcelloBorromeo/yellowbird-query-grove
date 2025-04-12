@@ -1,3 +1,4 @@
+
 import os
 import json
 import uuid
@@ -71,9 +72,7 @@ class DataNavigatorTools(Toolkit):
         self.register(self.save_query_for_plotting)
         self.register(self.generate_plotly_visualization_from_saved_query)
 
-    def get_available_db_keys_str(self) -> str:
-        """Helper for docstrings."""
-        return ", ".join(self.db_keys)
+    # ... keep existing code (get_available_db_keys_str function) ...
 
     def get_db_tables(self) -> str:
         """Returns a list of tables for ALL configured analysis databases, grouped by database key."""
@@ -94,58 +93,7 @@ class DataNavigatorTools(Toolkit):
             response["errors"] = errors
         return json.dumps(response)
 
-    def get_table_schema(self, db_key: str, table_name: str) -> str:
-        f"""Returns the schema (column names and types) for a specific table in a specific analysis database.
-        Requires 'db_key' to identify the database.
-        Available database keys: {self.get_available_db_keys_str()}. Example: get_table_schema(db_key='{self.db_keys[0] if self.db_keys else 'your_db_key'}', table_name='your_table')"""
-        print(f"Executing get_table_schema for db: '{db_key}', table: {table_name}")
-        if db_key not in self.data_engines:
-             return json.dumps({"error": f"Unknown database key: '{db_key}'. Available keys: {self.db_keys}"})
-        
-        try:
-            engine = self.data_engines[db_key]
-            inspector = inspect(engine)
-            if not inspector.has_table(table_name):
-                # List available tables for context
-                available_tables = inspector.get_table_names()
-                return json.dumps({"error": f"Table '{table_name}' not found in database '{db_key}'. Available tables: {available_tables}"}) 
-            
-            columns = inspector.get_columns(table_name)
-            schema = {col['name']: str(col['type']) for col in columns}
-            return json.dumps({"schema": schema})
-        except Exception as e:
-            print(f"Error getting schema for db '{db_key}', table {table_name}: {e}")
-            return json.dumps({"error": f"Error getting schema for table '{table_name}' in database '{db_key}': {e}"})
-
-    def query_database(self, db_key: str, sql_query: str) -> str:
-        f"""
-        Executes a SQL SELECT query against a specific analysis database and returns the results as JSON.
-        Requires 'db_key' to identify the target database.
-        Available database keys are: {self.get_available_db_keys_str()}
-        Use 'get_db_tables' to see available tables and 'get_table_schema(db_key=..., table_name=...)' to understand structure first.
-        Only SELECT statements are allowed.
-        Example query: SELECT region, SUM(amount) FROM sales GROUP BY region (assuming 'sales' table exists in the specified db_key)
-        """
-        print(f"Executing SQL query on db '{db_key}': {sql_query}")
-        if db_key not in self.data_engines:
-             return json.dumps({"error": f"Unknown database key: '{db_key}'. Available keys: {self.db_keys}"})
-             
-        if not sql_query.strip().upper().startswith("SELECT"):
-            return json.dumps({"error": "Only SELECT statements are allowed."})
-
-        try:
-            engine = self.data_engines[db_key]
-            with engine.connect() as connection:
-                df = pd.read_sql_query(sql=text(sql_query), con=connection)
-            
-            if len(df) > 50:
-                df = df.head(50)
-                warning = "Warning: Query result truncated to 50 rows."
-                return json.dumps({"data": df.to_dict(orient='records'), "warning": warning})
-            return json.dumps({"data": df.to_dict(orient='records')})
-        except Exception as e:
-            print(f"Database query error on db '{db_key}': {e}")
-            return json.dumps({"error": f"Error executing query on database '{db_key}': {e}"})
+    # ... keep existing code (get_table_schema and query_database functions) ...
 
     def _create_plot_from_df(self, data_df: pd.DataFrame, plot_type: str, title: str, x_axis: str, y_axis: str, color: str = None, size: str = None) -> str:
         """Internal function to generate Plotly JSON from a DataFrame and parameters."""
@@ -215,8 +163,8 @@ class DataNavigatorTools(Toolkit):
         title: str,
         x_axis: str,
         y_axis: str,
-        color: Optional[str] = None,
-        size: Optional[str] = None
+        color: Optional[str] = "",  # Default to empty string instead of None
+        size: Optional[str] = ""    # Default to empty string instead of None
     ) -> str:
         """
         Generates a Plotly visualization using data from a previously saved query and saves it persistently,
@@ -230,7 +178,7 @@ class DataNavigatorTools(Toolkit):
         print(f"Executing generate_plotly_visualization_from_saved_query for saved_query_id: {saved_query_id}")
         print(f"Plot parameters - type: {plot_type}, title: {title}, x: {x_axis}, y: {y_axis}, color: {color}, size: {size}")
         
-        # Fix for None values - convert to empty strings if None
+        # Handle None values - convert to empty strings if None
         color = "" if color is None else color
         size = "" if size is None else size
 
@@ -363,57 +311,7 @@ class DataNavigatorTools(Toolkit):
         else:
             return json.dumps({"error": "Query execution succeeded but resulted in no DataFrame."})
 
-    def save_query_for_plotting(self, agent: Agent, db_key: str, sql_query: str) -> str:
-        """
-        Saves a validated SQL query for later use in plotting.
-        Use this tool *after* confirming a query with 'query_database' is correct and suitable for visualization.
-        Provide the exact 'db_key' and 'sql_query' that you want to save.
-        The tool will save the query persistently and return a unique 'saved_query_id'.
-        You MUST use this returned 'saved_query_id' when calling 'generate_plotly_visualization_from_saved_query'.
-        Example: save_query_for_plotting(db_key='default', sql_query='SELECT city, AVG(temperature) FROM weather GROUP BY city')
-        Returns: {"status": "success", "saved_query_id": "unique-uuid-goes-here"}
-        """
-        print(f"Executing save_query_for_plotting for db_key: {db_key}, query: {sql_query[:100]}...")
-
-        # Basic validation
-        if db_key not in self.data_engines:
-            return json.dumps({"error": f"Invalid db_key: '{db_key}'. Available keys: {self.db_keys}"})
-        if not sql_query.strip().upper().startswith("SELECT"): # Ensure it's still a SELECT query
-            return json.dumps({"error": "Only SELECT queries can be saved for plotting."})
-
-        # Retrieve current session_id directly from the agent instance
-        current_session_id = agent.session_id
-        if not current_session_id:
-            print("Error: Agent session ID not found within tool execution context.")
-            return json.dumps({"error": "Could not determine current session ID to save query."})
-
-        # Generate a unique ID for this saved query
-        saved_query_id = str(uuid.uuid4())
-
-        # Save to the database
-        try:
-            # Use the session_db_uri stored in the instance
-            query_store_engine = create_engine(self.session_db_uri)
-            with query_store_engine.connect() as conn:
-                stmt = text("""
-                    INSERT INTO session_queries (session_id, query_id, db_key, sql_query)
-                    VALUES (:session_id, :query_id, :db_key, :sql_query)
-                    ON CONFLICT(session_id, query_id) DO UPDATE SET
-                    db_key = excluded.db_key, sql_query = excluded.sql_query;
-                """)
-                conn.execute(stmt, {
-                    "session_id": current_session_id,
-                    "query_id": saved_query_id,
-                    "db_key": db_key,
-                    "sql_query": sql_query
-                })
-                if conn.engine.dialect.supports_sane_rowcount_returning is False:
-                    conn.commit()
-            print(f"Successfully saved query with ID: {saved_query_id} for session {current_session_id}")
-            return json.dumps({"status": "success", "saved_query_id": saved_query_id})
-        except Exception as db_err:
-            print(f"Error saving query to DB: {db_err}")
-            return json.dumps({"error": f"Database error saving query: {db_err}"})
+    # ... keep existing code (save_query_for_plotting function) ...
 
 # --- Agent Setup ---
 api_key = os.getenv("OPENAI_API_KEY")
@@ -547,6 +445,8 @@ def _prepare_frontend_data(messages: list, session_id: str) -> tuple[list, dict]
     print(f"_prepare_frontend_data: Prepared {len(frontend_history)} history items. Returning viz map with {len(viz_by_call_id_map)} items keyed by tool_call_id.")
     return frontend_history, viz_by_call_id_map 
 
+# ... keep existing code (routes and handler functions) ...
+
 @app.route('/')
 def index():
     # List available sessions for the user from storage
@@ -609,4 +509,28 @@ def handle_query():
 
         # Add visualizations if available
         if visualizations_map_by_call_id:
-            for tool_call_id, plotly_json in visualizations_map_by_
+            for tool_call_id, plotly_json in visualizations_map_by_call_id.items():
+                try:
+                    # Parse the JSON string into a Python object
+                    plotly_data = json.loads(plotly_json)
+                    
+                    # Add to result's visualizations list
+                    result["visualizations"].append({
+                        "figure": plotly_data,
+                        "type": "plotly", # Use standard type for frontend
+                        "tool_call_id": tool_call_id
+                    })
+                except Exception as viz_err:
+                    print(f"Error processing visualization JSON from DB: {viz_err}")
+        
+        print(f"Returning response with {len(result['visualizations'])} visualizations")
+        return jsonify(result)
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"Error handling query: {e}")
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5002, debug=True)
